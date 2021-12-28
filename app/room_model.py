@@ -110,8 +110,7 @@ def _create_room_user(conn, room_id: int, user_id: int, live_difficulty: LiveDif
         dict(
             room_id=room_id,
             user_id=user_id,
-            # live_difficulty=live_difficulty,
-            live_difficulty=3,
+            live_difficulty=int(live_difficulty),
             is_host=is_host,
         ),
     )
