@@ -96,7 +96,7 @@ class RoomListResponse(BaseModel):
     room_info_list: List[RoomInfo]
 
 
-@app.post("/room/list", response_model=List[RoomInfo])
+@app.post("/room/list", response_model=RoomListResponse)
 def room_list(req: RoomListRequest):
     """Update user attributes"""
     rooms: List[RoomInfo] = get_rooms_by_live_id(req.live_id)
