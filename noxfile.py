@@ -49,19 +49,21 @@ def test(session):
 def lint(session):
     env: Dict[str, str] = {}
     env.update(env_common)
+    kwargs = dict(env=env, success_codes=[0, 1])
 
     install_package(session, dev=True)
-    session.run("flake8", "--statistics", "--count", "--show-source", *python_code_path_list, env=env)
-    session.run("autoflake8", "--check", "--recursive", "--remove-unused-variables", *python_code_path_list, env=env)
-    session.run("isort", "--check", *python_code_path_list, env=env)
-    session.run("black", "--check", *python_code_path_list, env=env)
-    session.run("mypy", "--check", *python_code_path_list, env=env)
+    session.run("flake8", "--statistics", "--count", "--show-source", *python_code_path_list, **kwargs)
+    session.run("autoflake8", "--check", "--recursive", "--remove-unused-variables", *python_code_path_list, **kwargs)
+    session.run("isort", "--check", *python_code_path_list, **kwargs)
+    session.run("black", "--check", *python_code_path_list, **kwargs)
+    session.run("mypy", "--check", *python_code_path_list, **kwargs)
 
 
 @nox.session(python=python_version_list)
 def format(session):
     env: Dict[str, str] = {}
     env.update(env_common)
+    kwargs = dict(env=env, success_codes=[0, 1])
 
     install_package(session, dev=True)
     session.run(
@@ -72,7 +74,7 @@ def format(session):
         "--in-place",
         "--exit-zero-even-if-changed",
         *python_code_path_list,
-        env=env,
+        **kwargs,
     )
-    session.run("isort", *python_code_path_list, env=env)
-    session.run("black", *python_code_path_list, env=env)
+    session.run("isort", *python_code_path_list, **kwargs)
+    session.run("black", *python_code_path_list, **kwargs)
