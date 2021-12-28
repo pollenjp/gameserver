@@ -3,6 +3,7 @@ import uuid
 from enum import Enum, IntEnum
 from typing import Optional
 
+import sqlalchemy
 from fastapi import HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -31,7 +32,7 @@ def create_user(name: str, leader_card_id: int) -> str:
     token = str(uuid.uuid4())
     # NOTE: tokenが衝突したらリトライする必要がある.
     with engine.begin() as conn:
-        result = conn.execute(
+        result: sqlalchemy.engine.CursorResult = conn.execute(
             text(
                 "INSERT INTO `user` (name, token, leader_card_id) VALUES (:name, :token, :leader_card_id)"
             ),
@@ -42,8 +43,15 @@ def create_user(name: str, leader_card_id: int) -> str:
 
 
 def _get_user_by_token(conn, token: str) -> Optional[SafeUser]:
-    # TODO: 実装
-    pass
+    result = conn.execute(
+        text("SELECT `id`, `name`, `leader_card_id` FROM `user` WHERE `token`=:token"),
+        dict(token=token),
+    )
+    try:
+        row = result.one()
+    except NoResultFound:
+        return None
+    return SafeUser.from_orm(row)
 
 
 def get_user_by_token(token: str) -> Optional[SafeUser]:
@@ -52,7 +60,11 @@ def get_user_by_token(token: str) -> Optional[SafeUser]:
 
 
 def update_user(token: str, name: str, leader_card_id: int) -> None:
-    # このコードを実装してもらう
     with engine.begin() as conn:
-        # TODO: 実装
-        pass
+        result = conn.execute(
+            text(
+                "UPDATE `user` SET `name`=:name, `leader_card_id`=:leader_card_id WHERE `token`=:token"
+            ),
+            dict(name=name, leader_card_id=leader_card_id, token=token),
+        )
+        print(f"result")
