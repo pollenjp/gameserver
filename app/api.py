@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from . import model
 from .model import SafeUser
-from .room_model import RoomInfo, RoomUser, create_room, get_rooms_by_live_id, LiveDifficulty, join_room, get_room_users, WaitRoomStatus, get_room_status
+from . import room_model
 
 app = FastAPI()
 
@@ -71,7 +71,7 @@ def update(req: UserCreateRequest, token: str = Depends(get_auth_token)):
 
 class RoomCreateRequest(BaseModel):
     live_id: int
-    select_difficulty: LiveDifficulty
+    select_difficulty: room_model.LiveDifficulty
 
 
 class RoomCreateResponse(BaseModel):
@@ -80,10 +80,10 @@ class RoomCreateResponse(BaseModel):
 
 @app.post("/room/create", response_model=RoomCreateResponse)
 def room_create(req: RoomCreateRequest, token: str = Depends(get_auth_token)):
-    room_id: int = create_room(req.live_id)
+    room_id: int = room_model.create_room(req.live_id)
     user: SafeUser = model.get_user_by_token(token)
-    join_room(room_id=room_id, user_id=user.id,
-              live_difficulty=req.select_difficulty, is_host=True)
+    room_model.join_room(room_id=room_id, user_id=user.id,
+                         live_difficulty=req.select_difficulty, is_host=True)
     print(f"create room: {room_id=}")
     return RoomCreateResponse(room_id=room_id)
 
@@ -93,32 +93,34 @@ class RoomListRequest(BaseModel):
 
 
 class RoomListResponse(BaseModel):
-    room_info_list: List[RoomInfo]
+    room_info_list: List[room_model.RoomInfo]
 
 
 @app.post("/room/list", response_model=RoomListResponse)
 def room_list(req: RoomListRequest):
-    rooms: List[RoomInfo] = get_rooms_by_live_id(req.live_id)
+    rooms: List[room_model.RoomInfo] = room_model.get_rooms_by_live_id(
+        req.live_id)
     print(f"{rooms=}")
     print(f"{type(rooms)=}")
     return RoomListResponse(room_info_list=rooms)
 
 
-class RoomWatiRequest(BaseModel):
+class RoomWaitRequest(BaseModel):
     room_id: int
 
 
-class RoomWatiResponse(BaseModel):
-    status: WaitRoomStatus
-    room_user_list: List[RoomUser]
+class RoomWaitResponse(BaseModel):
+    status: room_model.WaitRoomStatus
+    room_user_list: List[room_model.RoomUser]
 
 
-@app.post("/room/wait", response_model=RoomWatiResponse)
-def room_list(req: RoomWatiRequest, token: str = Depends(get_auth_token)):
-    room_status: WaitRoomStatus = get_room_status(room_id=req.room_id)
+@app.post("/room/wait", response_model=RoomWaitResponse)
+def room_list(req: RoomWaitRequest, token: str = Depends(get_auth_token)):
+    room_status: room_model.WaitRoomStatus = room_model.get_room_status(
+        room_id=req.room_id)
     print(f"{room_status=}")
     user_id: SafeUser = model.get_user_by_token(token)
-    room_user_list: List[RoomUser] = get_room_users(
+    room_user_list: List[room_model.RoomUser] = room_model.get_room_users(
         room_id=req.room_id, user_id_req=user_id.id)
     print(f"{room_user_list=}")
-    return RoomWatiResponse(status=room_status.status, room_user_list=room_user_list)
+    return RoomWaitResponse(status=room_status.status, room_user_list=room_user_list)
