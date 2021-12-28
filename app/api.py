@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from . import model
 from .model import SafeUser
-from .room_model import RoomInfo, RoomUser, create_room, get_rooms_by_live_id, LiveDifficulty, join_room
+from .room_model import RoomInfo, RoomUser, create_room, get_rooms_by_live_id, LiveDifficulty, join_room, get_room_users, WaitRoomStatus, get_room_status
 
 app = FastAPI()
 
@@ -98,8 +98,27 @@ class RoomListResponse(BaseModel):
 
 @app.post("/room/list", response_model=RoomListResponse)
 def room_list(req: RoomListRequest):
-    """Update user attributes"""
     rooms: List[RoomInfo] = get_rooms_by_live_id(req.live_id)
     print(f"{rooms=}")
     print(f"{type(rooms)=}")
     return RoomListResponse(room_info_list=rooms)
+
+
+class RoomWatiRequest(BaseModel):
+    room_id: int
+
+
+class RoomWatiResponse(BaseModel):
+    status: WaitRoomStatus
+    room_user_list: List[RoomUser]
+
+
+@app.post("/room/wait", response_model=RoomWatiResponse)
+def room_list(req: RoomWatiRequest, token: str = Depends(get_auth_token)):
+    room_status: WaitRoomStatus = get_room_status(room_id=req.room_id)
+    print(f"{room_status=}")
+    user_id: SafeUser = model.get_user_by_token(token)
+    room_user_list: List[RoomUser] = get_room_users(
+        room_id=req.room_id, user_id_req=user_id.id)
+    print(f"{room_user_list=}")
+    return RoomWatiResponse(status=room_status.status, room_user_list=room_user_list)

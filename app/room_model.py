@@ -1,7 +1,7 @@
 import json
 import uuid
 from enum import Enum, IntEnum
-from typing import List, Optional
+from typing import List, Optional, Iterator
 
 import sqlalchemy
 from fastapi import HTTPException
@@ -33,6 +33,15 @@ class WaitRoomStatus(IntEnum):
     Dissolution = 3  # 解散された
 
 
+class RoomStatus(BaseModel):
+    room_id: int
+    status: WaitRoomStatus  # error
+    # status: int
+
+    class Config:
+        orm_mode = True
+
+
 class RoomInfo(BaseModel):
     room_id: int
     live_id: int
@@ -47,8 +56,11 @@ class RoomUser(BaseModel):
     room_id: int
     user_id: int
     live_difficulty: int
-    is_me: bool  # 代入時にチェック？
+    is_me: bool = False
     is_host: bool
+
+    class Config:
+        orm_mode = True
 
 
 class RoomUserRow(BaseModel):
@@ -141,3 +153,34 @@ def get_rooms_by_live_id(live_id: int) -> List[RoomInfo]:
         return list(_get_rooms_by_live_id(conn, live_id))
 
 
+def _get_room_status(conn, room_id: int) -> RoomInfo:
+    result = conn.execute(
+        text("SELECT `room_id`, `status` FROM `room` WHERE `room_id`=:room_id"),
+        dict(room_id=room_id),
+    )
+    return RoomStatus.from_orm(result.one())
+
+
+def get_room_status(room_id: int) -> RoomStatus:
+    with engine.begin() as conn:
+        return _get_room_status(conn, room_id)
+
+
+def _get_room_users(conn, room_id: int, user_id_req: int) -> Iterator[RoomInfo]:
+    result = conn.execute(
+        text("SELECT `room_id`, `user_id`, `live_difficulty`, `is_host` FROM `room_user` WHERE `room_id`=:room_id"),
+        dict(room_id=room_id),
+    )
+    for row in result.all():
+        room_user: RoomUser = RoomUser.from_orm(row)
+        print(f"{room_user}")
+        if room_user.user_id == user_id_req:
+            room_user.is_me = True
+        yield room_user
+
+
+def get_room_users(room_id: int, user_id_req: int) -> List[RoomUser]:
+    with engine.begin() as conn:
+        users: List[RoomUser] = list(_get_room_users(
+            conn, room_id, user_id_req=user_id_req))
+    return users
