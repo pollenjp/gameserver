@@ -1,14 +1,14 @@
-import json
+# Standard Library
 import uuid
-from enum import Enum, IntEnum
 from typing import Optional
 
+# Third Party Library
 import sqlalchemy
-from fastapi import HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.exc import NoResultFound
 
+# Local Library
 from .db import engine
 
 
@@ -33,9 +33,7 @@ def create_user(name: str, leader_card_id: int) -> str:
     # NOTE: tokenが衝突したらリトライする必要がある.
     with engine.begin() as conn:
         result: sqlalchemy.engine.CursorResult = conn.execute(
-            text(
-                "INSERT INTO `user` (name, token, leader_card_id) VALUES (:name, :token, :leader_card_id)"
-            ),
+            text("INSERT INTO `user` (name, token, leader_card_id) VALUES (:name, :token, :leader_card_id)"),
             {"name": name, "token": token, "leader_card_id": leader_card_id},
         )
         # print(result)
@@ -65,9 +63,7 @@ def update_user(token: str, name: str, leader_card_id: int) -> None:
         if user is None:
             raise InvalidToken
         result: sqlalchemy.engine.CursorResult = conn.execute(
-            text(
-                "UPDATE `user` SET `name`=:name, `leader_card_id`=:leader_card_id WHERE `token`=:token"
-            ),
+            text("UPDATE `user` SET `name`=:name, `leader_card_id`=:leader_card_id WHERE `token`=:token"),
             dict(name=name, leader_card_id=leader_card_id, token=token),
         )
         print(f"{result=}")

@@ -1,15 +1,15 @@
-import json
-import uuid
-from enum import Enum, IntEnum
-from typing import List, Optional, Iterator
+# Standard Library
+from enum import IntEnum
+from typing import Iterator
+from typing import List
+from typing import Optional
 
+# Third Party Library
 import sqlalchemy
-from fastapi import HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
-from sqlalchemy.exc import NoResultFound
-from .model import SafeUser
 
+# Local Library
 from .db import engine
 
 max_user_count: int = 4
@@ -72,12 +72,8 @@ class RoomUserRow(BaseModel):
 def create_room(live_id: int) -> int:
     with engine.begin() as conn:
         result: sqlalchemy.engine.CursorResult = conn.execute(
-            # text(
-            #     "INSERT INTO `room` SET `live_id`=:live_id, `joined_user_count`=:joined_user_count RETURNING *"
-            # ),
-            text(
-                "INSERT INTO `room` (live_id, joined_user_count) VALUES (:live_id, :joined_user_count)"
-            ),
+            text("INSERT INTO `room` SET `live_id`=:live_id, `joined_user_count`=:joined_user_count"),
+            # text("INSERT INTO `room` (live_id, joined_user_count) VALUES (:live_id, :joined_user_count)"),
             dict(
                 live_id=live_id,
                 joined_user_count=0,
@@ -97,9 +93,7 @@ def _update_room_user_count(conn, room_id: int, offset: int):
     joined_user_count: int = result.one().joined_user_count
     joined_user_count += offset
     result: sqlalchemy.engine.CursorResult = conn.execute(
-        text(
-            "UPDATE `room` SET `joined_user_count`=:joined_user_count WHERE `room_id`=:room_id"
-        ),
+        text("UPDATE `room` SET `joined_user_count`=:joined_user_count WHERE `room_id`=:room_id"),
         dict(
             joined_user_count=joined_user_count,
             room_id=room_id,
@@ -180,8 +174,7 @@ def _get_room_users(conn, room_id: int, user_id_req: int) -> Iterator[RoomInfo]:
 
 def get_room_users(room_id: int, user_id_req: int) -> List[RoomUser]:
     with engine.begin() as conn:
-        users: List[RoomUser] = list(_get_room_users(
-            conn, room_id, user_id_req=user_id_req))
+        users: List[RoomUser] = list(_get_room_users(conn, room_id, user_id_req=user_id_req))
     return users
 
 
@@ -198,8 +191,7 @@ def _get_room_info_by_id(conn, room_id: int) -> RoomInfo:
 
 def join_room(user_id: int, room_id: int, live_difficulty: LiveDifficulty) -> JoinRoomResult:
     with engine.begin() as conn:
-        room_info: Optional[RoomInfo] = _get_room_info_by_id(
-            conn, room_id=room_id)
+        room_info: Optional[RoomInfo] = _get_room_info_by_id(conn, room_id=room_id)
         if room_info is None:
             return JoinRoomResult.Disbanded
         if room_info.joined_user_count >= room_info.max_user_count:

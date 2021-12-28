@@ -1,13 +1,18 @@
-from enum import Enum
+# Standard Library
 from typing import List
 
-from fastapi import Depends, FastAPI, HTTPException
-from fastapi.security.http import HTTPAuthorizationCredentials, HTTPBearer
+# Third Party Library
+from fastapi import Depends
+from fastapi import FastAPI
+from fastapi import HTTPException
+from fastapi.security.http import HTTPAuthorizationCredentials
+from fastapi.security.http import HTTPBearer
 from pydantic import BaseModel
 
+# Local Library
 from . import model
-from .model import SafeUser
 from . import room_model
+from .model import SafeUser
 
 app = FastAPI()
 
@@ -82,8 +87,7 @@ class RoomCreateResponse(BaseModel):
 def room_create(req: RoomCreateRequest, token: str = Depends(get_auth_token)):
     room_id: int = room_model.create_room(req.live_id)
     user: SafeUser = model.get_user_by_token(token)
-    room_model.join_room(room_id=room_id, user_id=user.id,
-                         live_difficulty=req.select_difficulty, is_host=True)
+    room_model.join_room(room_id=room_id, user_id=user.id, live_difficulty=req.select_difficulty, is_host=True)
     print(f"create room: {room_id=}")
     return RoomCreateResponse(room_id=room_id)
 
@@ -98,8 +102,7 @@ class RoomListResponse(BaseModel):
 
 @app.post("/room/list", response_model=RoomListResponse)
 def room_list(req: RoomListRequest):
-    rooms: List[room_model.RoomInfo] = room_model.get_rooms_by_live_id(
-        req.live_id)
+    rooms: List[room_model.RoomInfo] = room_model.get_rooms_by_live_id(req.live_id)
     print(f"{rooms=}")
     print(f"{type(rooms)=}")
     return RoomListResponse(room_info_list=rooms)
@@ -116,12 +119,10 @@ class RoomWaitResponse(BaseModel):
 
 @app.post("/room/wait", response_model=RoomWaitResponse)
 def room_list(req: RoomWaitRequest, token: str = Depends(get_auth_token)):
-    room_status: room_model.WaitRoomStatus = room_model.get_room_status(
-        room_id=req.room_id)
+    room_status: room_model.WaitRoomStatus = room_model.get_room_status(room_id=req.room_id)
     print(f"{room_status=}")
     user_id: SafeUser = model.get_user_by_token(token)
-    room_user_list: List[room_model.RoomUser] = room_model.get_room_users(
-        room_id=req.room_id, user_id_req=user_id.id)
+    room_user_list: List[room_model.RoomUser] = room_model.get_room_users(room_id=req.room_id, user_id_req=user_id.id)
     print(f"{room_user_list=}")
     return RoomWaitResponse(status=room_status.status, room_user_list=room_user_list)
 
@@ -135,7 +136,7 @@ class RoomJoinResponse(BaseModel):
     join_room_result: room_model.JoinRoomResult  # ルーム入場結果
 
 
-@app.post("/room/wait", response_model=RoomJoinResponse)
-def room_list(req: RoomJoinRequest, token: str = Depends(get_auth_token)):
-    join_room_result: room_model.JoinRoomResult = ... # TODO:
+@app.post("/room/join", response_model=RoomJoinResponse)
+def room_join(req: RoomJoinRequest, token: str = Depends(get_auth_token)):
+    join_room_result: room_model.JoinRoomResult = ...  # TODO:
     return RoomJoinResponse(join_room_result=join_room_result)
