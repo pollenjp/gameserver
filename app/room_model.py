@@ -35,7 +35,7 @@ class WaitRoomStatus(IntEnum):
 
 class RoomStatus(BaseModel):
     room_id: int
-    status: WaitRoomStatus  # error
+    status: WaitRoomStatus
     # status: int
 
     class Config:
