@@ -69,7 +69,7 @@ def create_room(live_id: int) -> int:
             ),
             dict(
                 live_id=live_id,
-                joined_user_count=1,  # host
+                joined_user_count=0,
             ),
         )
         # TODO: need exception?
