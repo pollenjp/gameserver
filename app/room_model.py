@@ -124,3 +124,20 @@ def join_room(room_id: int, user_id: int, live_difficulty: LiveDifficulty, is_ho
     return
 
 
+def _get_rooms_by_live_id(conn, live_id: int):
+    """
+    to list rooms
+    """
+    result = conn.execute(
+        text("SELECT `room_id`, `live_id`, `joined_user_count` FROM `room` WHERE `live_id`=:live_id"),
+        dict(live_id=live_id),
+    )
+    for row in result.all():
+        yield RoomInfo.from_orm(row)
+
+
+def get_rooms_by_live_id(live_id: int) -> List[RoomInfo]:
+    with engine.begin() as conn:
+        return list(_get_rooms_by_live_id(conn, live_id))
+
+
