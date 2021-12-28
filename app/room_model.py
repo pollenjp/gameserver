@@ -20,7 +20,7 @@ class LiveDifficulty(IntEnum):
     hard: int = 2
 
 
-class JoinedRoomResult(IntEnum):
+class JoinRoomResult(IntEnum):
     Ok: int = 1
     RoomFull: int = 2
     Disbanded: int = 3
@@ -183,3 +183,24 @@ def get_room_users(room_id: int, user_id_req: int) -> List[RoomUser]:
         users: List[RoomUser] = list(_get_room_users(
             conn, room_id, user_id_req=user_id_req))
     return users
+
+
+def _get_room_info_by_id(conn, room_id: int) -> RoomInfo:
+    result = conn.execute(
+        text("SELECT `room_id`, `live_id`, `joined_user_count` FROM `room` WHERE `room_id`=:room_id"),
+        dict(room_id=room_id),
+    )
+    row = result.one()
+    if row is None:
+        return row
+    return RoomInfo.from_orm(row)
+
+
+def join_room(user_id: int, room_id: int, live_difficulty: LiveDifficulty) -> JoinRoomResult:
+    with engine.begin() as conn:
+        room_info: Optional[RoomInfo] = _get_room_info_by_id(
+            conn, room_id=room_id)
+        if room_info is None:
+            return JoinRoomResult.Disbanded
+        if room_info.joined_user_count >= room_info.max_user_count:
+            return JoinRoomResult.Full

@@ -124,3 +124,18 @@ def room_list(req: RoomWaitRequest, token: str = Depends(get_auth_token)):
         room_id=req.room_id, user_id_req=user_id.id)
     print(f"{room_user_list=}")
     return RoomWaitResponse(status=room_status.status, room_user_list=room_user_list)
+
+
+class RoomJoinRequest(BaseModel):
+    room_id: int
+    select_difficulty: room_model.LiveDifficulty
+
+
+class RoomJoinResponse(BaseModel):
+    join_room_result: room_model.JoinRoomResult  # ルーム入場結果
+
+
+@app.post("/room/wait", response_model=RoomJoinResponse)
+def room_list(req: RoomJoinRequest, token: str = Depends(get_auth_token)):
+    join_room_result: room_model.JoinRoomResult = ... # TODO:
+    return RoomJoinResponse(join_room_result=join_room_result)
