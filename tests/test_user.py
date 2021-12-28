@@ -1,8 +1,11 @@
+import pytest
 from fastapi.testclient import TestClient
 
-from app.api import app
+import app.api
+import app.model
+from app.model import InvalidToken
 
-client = TestClient(app)
+client = TestClient(app.api.app)
 
 
 def test_create_user():
@@ -23,3 +26,8 @@ def test_create_user():
     assert response_data.keys() == {"id", "name", "leader_card_id"}
     assert response_data["name"] == "test1"
     assert response_data["leader_card_id"] == 1000
+
+
+def test_update_not_existing_user():
+    with pytest.raises(InvalidToken):
+        app.model.update_user(token="nothing", name="Hello", leader_card_id=0)

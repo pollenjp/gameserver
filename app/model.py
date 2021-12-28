@@ -61,10 +61,14 @@ def get_user_by_token(token: str) -> Optional[SafeUser]:
 
 def update_user(token: str, name: str, leader_card_id: int) -> None:
     with engine.begin() as conn:
-        result = conn.execute(
+        user: SafeUser = get_user_by_token(token)
+        if user is None:
+            raise InvalidToken
+        result: sqlalchemy.engine.CursorResult = conn.execute(
             text(
                 "UPDATE `user` SET `name`=:name, `leader_card_id`=:leader_card_id WHERE `token`=:token"
             ),
             dict(name=name, leader_card_id=leader_card_id, token=token),
         )
-        print(f"result")
+        print(f"{result=}")
+        print(f"{dir(result)=}")
