@@ -35,8 +35,15 @@ def create_user(name: str, leader_card_id: int) -> str:
     token = str(uuid.uuid4())
     # NOTE: tokenが衝突したらリトライする必要がある.
     with engine.begin() as conn:
+        query: str = r" ".join(
+            [
+                r"INSERT INTO `user`",
+                r"(`name`, `token`, `leader_card_id`)",
+                r"VALUES (:name, :token, :leader_card_id)",
+            ]
+        )
         result: CursorResult = conn.execute(
-            text("INSERT INTO `user` (name, token, leader_card_id) VALUES (:name, :token, :leader_card_id)"),
+            text(query),
             {"name": name, "token": token, "leader_card_id": leader_card_id},
         )
         logger.info(f"{result}")
@@ -44,13 +51,12 @@ def create_user(name: str, leader_card_id: int) -> str:
 
 
 def _get_user_by_token(conn, token: str) -> Optional[SafeUser]:
-    result = conn.execute(
-        text("SELECT `id`, `name`, `leader_card_id` FROM `user` WHERE `token`=:token"),
-        dict(token=token),
-    )
+    query: str = r"SELECT `id`, `name`, `leader_card_id` FROM `user` WHERE `token`=:token"
+    result = conn.execute(text(query), dict(token=token))
     try:
         row = result.one()
     except NoResultFound:
+        logger.warning(f"No Result Found: ({query=})")
         return None
     return SafeUser.from_orm(row)
 

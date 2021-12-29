@@ -65,24 +65,10 @@ class RoomUser(BaseModel):
         orm_mode = True
 
 
-class RoomUserRow(BaseModel):
-    room_id: int
-    user_id: int
-    live_difficulty: int
-    is_host: bool
-
-
 def create_room(live_id: int) -> int:
     with engine.begin() as conn:
-        result: CursorResult = conn.execute(
-            text("INSERT INTO `room` SET `live_id`=:live_id, `joined_user_count`=:joined_user_count"),
-            # text("INSERT INTO `room` (live_id, joined_user_count) VALUES (:live_id, :joined_user_count)"),
-            dict(
-                live_id=live_id,
-                joined_user_count=0,
-            ),
-        )
-        # TODO: need exception?
+        query: str = r"INSERT INTO `room` SET `live_id`=:live_id, `joined_user_count`=:joined_user_count"
+        result: CursorResult = conn.execute(text(query), dict(live_id=live_id, joined_user_count=0))
         logger.info(f"{result=}")
         logger.info(f"{result.lastrowid=}")
         room_id: int = result.lastrowid
@@ -90,10 +76,8 @@ def create_room(live_id: int) -> int:
 
 
 def _update_room_user_count(conn, room_id: int, offset: int):
-    result_select: CursorResult = conn.execute(
-        text("SELECT joined_user_count FROM `room` WHERE `room_id`=:room_id"),
-        dict(room_id=room_id),
-    )
+    query: str = r"SELECT joined_user_count FROM `room` WHERE `room_id`=:room_id"
+    result_select: CursorResult = conn.execute(text(query), dict(room_id=room_id))
     joined_user_count: int = result_select.one().joined_user_count
     joined_user_count += offset
     result_update: CursorResult = conn.execute(
@@ -108,15 +92,18 @@ def _update_room_user_count(conn, room_id: int, offset: int):
 
 
 def _create_room_user(conn, room_id: int, user_id: int, live_difficulty: LiveDifficulty, is_host: bool):
+    query: str = r" ".join(
+        [
+            "INSERT INTO `room_user`",
+            "SET",
+            "`room_id`=:room_id,",
+            "`user_id`=:user_id,",
+            "`live_difficulty`=:live_difficulty,",
+            "`is_host`=:is_host",
+        ]
+    )
     result: CursorResult = conn.execute(
-        text(
-            "INSERT INTO `room_user` "
-            "SET "
-            "`room_id`=:room_id, "
-            "`user_id`=:user_id, "
-            "`live_difficulty`=:live_difficulty, "
-            "`is_host`=:is_host ",
-        ),
+        text(query),
         dict(
             room_id=room_id,
             user_id=user_id,
@@ -128,10 +115,14 @@ def _create_room_user(conn, room_id: int, user_id: int, live_difficulty: LiveDif
 
 
 def _get_room_info_by_id(conn, room_id: int) -> Optional[RoomInfo]:
-    result = conn.execute(
-        text("SELECT `room_id`, `live_id`, `joined_user_count` FROM `room` WHERE `room_id`=:room_id"),
-        dict(room_id=room_id),
+    query: str = r" ".join(
+        [
+            r"SELECT `room_id`, `live_id`, `joined_user_count`",
+            r"FROM `room`",
+            r"WHERE `room_id`=:room_id",
+        ]
     )
+    result = conn.execute(text(query), dict(room_id=room_id))
     row = result.one()
     if row is None:
         return row
@@ -162,10 +153,14 @@ def _get_rooms_by_live_id(conn, live_id: int):
     """
     to list rooms
     """
-    result = conn.execute(
-        text("SELECT `room_id`, `live_id`, `joined_user_count` FROM `room` WHERE `live_id`=:live_id"),
-        dict(live_id=live_id),
+    query: str = r" ".join(
+        [
+            r"SELECT `room_id`, `live_id`, `joined_user_count`",
+            r"FROM `room`",
+            r"WHERE `live_id`=:live_id",
+        ]
     )
+    result = conn.execute(text(query), dict(live_id=live_id))
     for row in result.all():
         yield RoomInfo.from_orm(row)
 
@@ -176,10 +171,14 @@ def get_rooms_by_live_id(live_id: int) -> List[RoomInfo]:
 
 
 def _get_room_status(conn, room_id: int) -> RoomStatus:
-    result = conn.execute(
-        text("SELECT `room_id`, `status` FROM `room` WHERE `room_id`=:room_id"),
-        dict(room_id=room_id),
+    query: str = r" ".join(
+        [
+            r"SELECT `room_id`, `status`",
+            r"FROM `room`",
+            r"WHERE `room_id`=:room_id",
+        ]
     )
+    result = conn.execute(text(query), dict(room_id=room_id))
     return RoomStatus.from_orm(result.one())
 
 
@@ -189,10 +188,14 @@ def get_room_status(room_id: int) -> RoomStatus:
 
 
 def _get_room_users(conn, room_id: int, user_id_req: int) -> Iterator[RoomUser]:
-    result = conn.execute(
-        text("SELECT `room_id`, `user_id`, `live_difficulty`, `is_host` FROM `room_user` WHERE `room_id`=:room_id"),
-        dict(room_id=room_id),
+    query: str = r" ".join(
+        [
+            r"SELECT `room_id`, `user_id`, `live_difficulty`, `is_host`",
+            r"FROM `room_user`",
+            r"WHERE `room_id`=:room_id",
+        ]
     )
+    result = conn.execute(text(query), dict(room_id=room_id))
     for row in result.all():
         room_user: RoomUser = RoomUser.from_orm(row)
         logger.info(f"{room_user}")
