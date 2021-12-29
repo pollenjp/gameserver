@@ -208,3 +208,31 @@ def get_room_users(room_id: int, user_id_req: int) -> List[RoomUser]:
     with engine.begin() as conn:
         users: List[RoomUser] = list(_get_room_users(conn, room_id, user_id_req=user_id_req))
     return users
+
+
+def start_room(room_id: int) -> None:
+    """update room's status to LiveStart
+
+    Args:
+        room_id (int): [description]
+
+    Returns:
+        [type]: [description]
+    """
+    with engine.begin() as conn:
+        query: str = r" ".join(
+            [
+                r"UPDATE `room`",
+                r"SET `status`=:status",
+                r"WHERE `room_id`=:room_id",
+            ]
+        )
+        result = conn.execute(
+            text(query),
+            dict(
+                status=int(WaitRoomStatus.LiveStart),
+                room_id=room_id,
+            ),
+        )
+        logger.info(f"{result=}")
+        return

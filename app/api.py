@@ -166,3 +166,13 @@ def room_join(req: RoomJoinRequest, token: str = Depends(get_auth_token)):
         live_difficulty=req.select_difficulty,
     )
     return RoomJoinResponse(join_room_result=join_room_result)
+
+
+class RoomStartRequest(BaseModel):
+    room_id: int
+
+
+@app.post("/room/start", response_model=EmptyResponse)
+def room_start(req: RoomStartRequest, token: str = Depends(get_auth_token)):
+    room_model.start_room(req.room_id)
+    return EmptyResponse()
