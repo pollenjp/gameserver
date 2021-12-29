@@ -77,16 +77,16 @@ def user_me(token: str = Depends(get_auth_token)):
     return user
 
 
-class Empty(BaseModel):
+class EmptyResponse(BaseModel):
     pass
 
 
-@app.post("/user/update", response_model=Empty)
-def update(req: UserCreateRequest, token: str = Depends(get_auth_token)):
+@app.post("/user/update", response_model=EmptyResponse)
+def user_update(req: UserCreateRequest, token: str = Depends(get_auth_token)):
     """Update user attributes"""
-    # logger.info(req)
+    logger.warning(f"/usr/update : {req=}")
     model.update_user(token, req.user_name, req.leader_card_id)
-    return {}
+    return EmptyResponse()
 
 
 class RoomCreateRequest(BaseModel):

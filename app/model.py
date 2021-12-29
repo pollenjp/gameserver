@@ -64,10 +64,9 @@ def update_user(token: str, name: str, leader_card_id: int) -> None:
     with engine.begin() as conn:
         user: Optional[SafeUser] = get_user_by_token(token)
         if user is None:
+            logger.warning(f"user not found. {name=}, {leader_card_id=}")
             raise InvalidToken
-        result: CursorResult = conn.execute(
-            text("UPDATE `user` SET `name`=:name, `leader_card_id`=:leader_card_id WHERE `token`=:token"),
-            dict(name=name, leader_card_id=leader_card_id, token=token),
-        )
+        query: str = r"UPDATE `user` SET `name`=:name, `leader_card_id`=:leader_card_id WHERE `token`=:token"
+        result: CursorResult = conn.execute(text(query), dict(name=name, leader_card_id=leader_card_id, token=token))
         logger.info(f"{result=}")
         logger.info(f"{dir(result)=}")

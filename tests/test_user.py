@@ -27,7 +27,7 @@ def test_create_user():
     assert response_data["name"] == "test1"
     assert response_data["leader_card_id"] == 1000
 
-    response = client.get(
+    response = client.post(
         "/user/update",
         headers={"Authorization": f"bearer {token}"},
         json=dict(
