@@ -7,8 +7,10 @@ from typing import List
 # Third Party Library
 import nox
 
+proj_root_path: Path = Path(__file__).parent
 python_code_path_list: List[str] = [
-    f"{Path(__file__).parent / 'app'}",
+    str(proj_root_path / "app"),
+    str(proj_root_path / "tests"),
     "noxfile.py",
 ]
 env_common: Dict[str, str] = {
