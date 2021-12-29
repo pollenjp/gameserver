@@ -1,0 +1,3 @@
+TRUNCATE TABLE `user`;
+TRUNCATE TABLE `room`;
+TRUNCATE TABLE `room_user`;
