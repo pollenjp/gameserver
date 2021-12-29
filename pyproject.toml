@@ -49,6 +49,7 @@ uvicorn = {extras = ["standard"], version = "^0.16.0"}
 SQLAlchemy = "^1.4.29"
 requests = "^2.26.0"
 mysqlclient = "^2.1.0"
+PyYAML = "^6.0"
 
 [tool.poetry.dev-dependencies]
 black = "^21.12b0"
@@ -59,6 +60,7 @@ pytest = "^6.2.5"
 nox = "^2021.10.1"
 autoflake8 = "^0.2.2"
 sqlalchemy-stubs = "^0.4"
+types-PyYAML = "^6.0.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

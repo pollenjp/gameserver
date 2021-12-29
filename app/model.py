@@ -1,5 +1,6 @@
 # Standard Library
 import uuid
+from logging import getLogger
 from typing import Optional
 
 # Third Party Library
@@ -10,6 +11,8 @@ from sqlalchemy.exc import NoResultFound  # type: ignore
 
 # Local Library
 from .db import engine
+
+logger = getLogger(__name__)
 
 
 class InvalidToken(Exception):
@@ -36,7 +39,7 @@ def create_user(name: str, leader_card_id: int) -> str:
             text("INSERT INTO `user` (name, token, leader_card_id) VALUES (:name, :token, :leader_card_id)"),
             {"name": name, "token": token, "leader_card_id": leader_card_id},
         )
-        print(result)
+        logger.info(f"{result}")
     return token
 
 
@@ -66,5 +69,5 @@ def update_user(token: str, name: str, leader_card_id: int) -> None:
             text("UPDATE `user` SET `name`=:name, `leader_card_id`=:leader_card_id WHERE `token`=:token"),
             dict(name=name, leader_card_id=leader_card_id, token=token),
         )
-        print(f"{result=}")
-        print(f"{dir(result)=}")
+        logger.info(f"{result=}")
+        logger.info(f"{dir(result)=}")

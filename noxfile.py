@@ -19,6 +19,8 @@ python_version_list: List[str] = ["3.10"]
 
 
 def install_package(session: nox.sessions.Session, dev: bool = False):
+    session.install("--upgrade", "pip")
+    session.run("pip", "-V")
     requirements_txt_path: Path = nox_tmp_dir / f"poetry-requirements-{str(uuid.uuid4())}.txt"
     requirements_txt_path.parent.mkdir(exist_ok=True, parents=True)
     try:
@@ -32,7 +34,9 @@ def install_package(session: nox.sessions.Session, dev: bool = False):
         ] + (["--dev"] if dev else [])
         session.run(*cmd, external=True)
         session.install("-r", f"{requirements_txt_path}")
-    finally:
+    except Exception as e:
+        raise e
+    else:
         requirements_txt_path.unlink(missing_ok=True)
 
 

@@ -1,9 +1,14 @@
+# Standard Library
+from logging import getLogger
+
 # Third Party Library
 from fastapi.testclient import TestClient
 
 # First Party Library
 from app import room_model
 from app.api import app
+
+logger = getLogger(__name__)
 
 client = TestClient(app)
 user_tokens = []
@@ -38,11 +43,11 @@ def test_room_1():
     assert response.status_code == 200
 
     room_id = response.json()["room_id"]
-    print(f"room/create {room_id=}")
+    logger.info(f"room/create {room_id=}")
 
     response = client.post("/room/list", json={"live_id": 1001})
     assert response.status_code == 200
-    print("room/list response:", response.json())
+    logger.info("room/list response:", response.json())
 
     response = client.post(
         "/room/join",
@@ -53,16 +58,16 @@ def test_room_1():
         },
     )
     assert response.status_code == 200
-    print("room/join response:", response.json())
+    logger.info("room/join response:", response.json())
     assert response.json()["join_room_result"] in [result for result in room_model.JoinRoomResult]
 
     response = client.post("/room/wait", headers=_auth_header(), json={"room_id": room_id})
     assert response.status_code == 200
-    print("room/wait response:", response.json())
+    logger.info("room/wait response:", response.json())
 
     response = client.post("/room/start", headers=_auth_header(), json={"room_id": room_id})
     assert response.status_code == 200
-    print("room/wait response:", response.json())
+    logger.info("room/wait response:", response.json())
 
     response = client.post(
         "/room/end",
@@ -70,14 +75,14 @@ def test_room_1():
         json={"room_id": room_id, "score": 1234, "judge_count_list": [4, 3, 2]},
     )
     assert response.status_code == 200
-    print("room/end response:", response.json())
+    logger.info("room/end response:", response.json())
 
     response = client.post(
         "/room/result",
         json={"room_id": room_id},
     )
     assert response.status_code == 200
-    print("room/end response:", response.json())
+    logger.info("room/end response:", response.json())
 
 
 # class TestRoom:

@@ -1,5 +1,6 @@
 # Standard Library
 from enum import IntEnum
+from logging import getLogger
 from typing import Iterator
 from typing import List
 from typing import Optional
@@ -11,6 +12,8 @@ from sqlalchemy.engine import CursorResult  # type: ignore
 
 # Local Library
 from .db import engine
+
+logger = getLogger(__name__)
 
 max_user_count: int = 4
 
@@ -80,8 +83,8 @@ def create_room(live_id: int) -> int:
             ),
         )
         # TODO: need exception?
-        print(f"{result=}")
-        print(f"{result.lastrowid=}")
+        logger.info(f"{result=}")
+        logger.info(f"{result.lastrowid=}")
         room_id: int = result.lastrowid
         return room_id
 
@@ -100,7 +103,7 @@ def _update_room_user_count(conn, room_id: int, offset: int):
             room_id=room_id,
         ),
     )
-    print(f"{result_update=}")
+    logger.info(f"{result_update=}")
     return
 
 
@@ -121,7 +124,7 @@ def _create_room_user(conn, room_id: int, user_id: int, live_difficulty: LiveDif
             is_host=is_host,
         ),
     )
-    print(f"{result=}")
+    logger.info(f"{result=}")
 
 
 def _get_room_info_by_id(conn, room_id: int) -> Optional[RoomInfo]:
@@ -150,8 +153,8 @@ def join_room(user_id: int, room_id: int, live_difficulty: LiveDifficulty, is_ho
             # Standard Library
             import traceback
 
-            print(f"{traceback.format_exc()}")
-            print(f"{e=}")
+            logger.info(f"{traceback.format_exc()}")
+            logger.info(f"{e=}")
             return JoinRoomResult.OhterError
 
 
@@ -192,7 +195,7 @@ def _get_room_users(conn, room_id: int, user_id_req: int) -> Iterator[RoomUser]:
     )
     for row in result.all():
         room_user: RoomUser = RoomUser.from_orm(row)
-        print(f"{room_user}")
+        logger.info(f"{room_user}")
         if room_user.user_id == user_id_req:
             room_user.is_me = True
         yield room_user

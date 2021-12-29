@@ -1,8 +1,12 @@
 # Standard Library
+from logging import getLogger
+from logging.config import dictConfig
+from pathlib import Path
 from typing import List
 from typing import Optional
 
 # Third Party Library
+import yaml
 from fastapi import Depends
 from fastapi import FastAPI
 from fastapi import HTTPException
@@ -10,10 +14,20 @@ from fastapi.security.http import HTTPAuthorizationCredentials
 from fastapi.security.http import HTTPBearer
 from pydantic import BaseModel
 
+if __name__ == "__main__":
+    filepath = Path(__file__).parents[1] / "conf" / "logging.yml"
+    with open(file=str(filepath), mode="rt") as f:
+        config_dict = yaml.safe_load(f)
+    dictConfig(config=config_dict)
+    del filepath, config_dict
+
+
 # Local Library
 from . import model
 from . import room_model
 from .model import SafeUser
+
+logger = getLogger(__name__)
 
 app = FastAPI()
 
@@ -59,7 +73,7 @@ def user_me(token: str = Depends(get_auth_token)):
     user = model.get_user_by_token(token)
     if user is None:
         raise HTTPException(status_code=404)
-    # print(f"user_me({token=}, {user=})")
+    # logger.info(f"user_me({token=}, {user=})")
     return user
 
 
@@ -70,7 +84,7 @@ class Empty(BaseModel):
 @app.post("/user/update", response_model=Empty)
 def update(req: UserCreateRequest, token: str = Depends(get_auth_token)):
     """Update user attributes"""
-    # print(req)
+    # logger.info(req)
     model.update_user(token, req.user_name, req.leader_card_id)
     return {}
 
@@ -91,7 +105,7 @@ def room_create(req: RoomCreateRequest, token: str = Depends(get_auth_token)):
     if user is None:
         return HTTPException(status_code=400, detail="Unknown user token")
     room_model.join_room(room_id=room_id, user_id=user.id, live_difficulty=req.select_difficulty, is_host=True)
-    print(f"create room: {room_id=}")
+    logger.info(f"create room: {room_id=}")
     return RoomCreateResponse(room_id=room_id)
 
 
@@ -106,8 +120,8 @@ class RoomListResponse(BaseModel):
 @app.post("/room/list", response_model=RoomListResponse)
 def room_list(req: RoomListRequest):
     rooms: List[room_model.RoomInfo] = room_model.get_rooms_by_live_id(req.live_id)
-    print(f"{rooms=}")
-    print(f"{type(rooms)=}")
+    logger.info(f"{rooms=}")
+    logger.info(f"{type(rooms)=}")
     return RoomListResponse(room_info_list=rooms)
 
 
@@ -123,12 +137,12 @@ class RoomWaitResponse(BaseModel):
 @app.post("/room/wait", response_model=RoomWaitResponse)
 def room_wait(req: RoomWaitRequest, token: str = Depends(get_auth_token)):
     room_status: room_model.RoomStatus = room_model.get_room_status(room_id=req.room_id)
-    print(f"{room_status=}")
+    logger.info(f"{room_status=}")
     user: Optional[SafeUser] = model.get_user_by_token(token)
     if user is None:
         return HTTPException(status_code=400, detail="Unknown user token")
     room_user_list: List[room_model.RoomUser] = room_model.get_room_users(room_id=req.room_id, user_id_req=user.id)
-    print(f"{room_user_list=}")
+    logger.info(f"{room_user_list=}")
     return RoomWaitResponse(status=room_status.status, room_user_list=room_user_list)
 
 
