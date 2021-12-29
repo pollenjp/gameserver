@@ -122,11 +122,35 @@ def _create_room_user(conn, room_id: int, user_id: int, live_difficulty: LiveDif
     print(f"{result=}")
 
 
-def join_room(room_id: int, user_id: int, live_difficulty: LiveDifficulty, is_host: bool) -> None:
+def _get_room_info_by_id(conn, room_id: int) -> RoomInfo:
+    result = conn.execute(
+        text("SELECT `room_id`, `live_id`, `joined_user_count` FROM `room` WHERE `room_id`=:room_id"),
+        dict(room_id=room_id),
+    )
+    row = result.one()
+    if row is None:
+        return row
+    return RoomInfo.from_orm(row)
+
+
+def join_room(user_id: int, room_id: int, live_difficulty: LiveDifficulty, is_host: bool = False) -> JoinRoomResult:
     with engine.begin() as conn:
-        _create_room_user(conn, room_id, user_id, live_difficulty, is_host)
-        _update_room_user_count(conn=conn, room_id=room_id, offset=1)
-    return
+        try:
+            room_info: Optional[RoomInfo] = _get_room_info_by_id(conn, room_id=room_id)
+            if room_info is None:
+                return JoinRoomResult.Disbanded
+            if room_info.joined_user_count >= room_info.max_user_count:
+                return JoinRoomResult.Full
+            _create_room_user(conn, room_id, user_id, live_difficulty, is_host)
+            _update_room_user_count(conn=conn, room_id=room_id, offset=1)
+            return JoinRoomResult.Ok
+        except object as e:
+            # Standard Library
+            import traceback
+
+            print(f"{traceback.format_exc()}")
+            print(f"{e=}")
+            return JoinRoomResult.OhterError
 
 
 def _get_rooms_by_live_id(conn, live_id: int):
@@ -176,23 +200,3 @@ def get_room_users(room_id: int, user_id_req: int) -> List[RoomUser]:
     with engine.begin() as conn:
         users: List[RoomUser] = list(_get_room_users(conn, room_id, user_id_req=user_id_req))
     return users
-
-
-def _get_room_info_by_id(conn, room_id: int) -> RoomInfo:
-    result = conn.execute(
-        text("SELECT `room_id`, `live_id`, `joined_user_count` FROM `room` WHERE `room_id`=:room_id"),
-        dict(room_id=room_id),
-    )
-    row = result.one()
-    if row is None:
-        return row
-    return RoomInfo.from_orm(row)
-
-
-def join_room(user_id: int, room_id: int, live_difficulty: LiveDifficulty) -> JoinRoomResult:
-    with engine.begin() as conn:
-        room_info: Optional[RoomInfo] = _get_room_info_by_id(conn, room_id=room_id)
-        if room_info is None:
-            return JoinRoomResult.Disbanded
-        if room_info.joined_user_count >= room_info.max_user_count:
-            return JoinRoomResult.Full

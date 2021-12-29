@@ -36,7 +36,7 @@ def create_user(name: str, leader_card_id: int) -> str:
             text("INSERT INTO `user` (name, token, leader_card_id) VALUES (:name, :token, :leader_card_id)"),
             {"name": name, "token": token, "leader_card_id": leader_card_id},
         )
-        # print(result)
+        print(result)
     return token
 
 
