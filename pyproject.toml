@@ -58,6 +58,7 @@ mypy = "^0.930"
 pytest = "^6.2.5"
 nox = "^2021.10.1"
 autoflake8 = "^0.2.2"
+sqlalchemy-stubs = "^0.4"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
