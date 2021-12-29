@@ -3,10 +3,10 @@ import uuid
 from typing import Optional
 
 # Third Party Library
-import sqlalchemy
 from pydantic import BaseModel
 from sqlalchemy import text
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.engine import CursorResult  # type: ignore
+from sqlalchemy.exc import NoResultFound  # type: ignore
 
 # Local Library
 from .db import engine
@@ -32,7 +32,7 @@ def create_user(name: str, leader_card_id: int) -> str:
     token = str(uuid.uuid4())
     # NOTE: tokenが衝突したらリトライする必要がある.
     with engine.begin() as conn:
-        result: sqlalchemy.engine.CursorResult = conn.execute(
+        result: CursorResult = conn.execute(
             text("INSERT INTO `user` (name, token, leader_card_id) VALUES (:name, :token, :leader_card_id)"),
             {"name": name, "token": token, "leader_card_id": leader_card_id},
         )
@@ -59,10 +59,10 @@ def get_user_by_token(token: str) -> Optional[SafeUser]:
 
 def update_user(token: str, name: str, leader_card_id: int) -> None:
     with engine.begin() as conn:
-        user: SafeUser = get_user_by_token(token)
+        user: Optional[SafeUser] = get_user_by_token(token)
         if user is None:
             raise InvalidToken
-        result: sqlalchemy.engine.CursorResult = conn.execute(
+        result: CursorResult = conn.execute(
             text("UPDATE `user` SET `name`=:name, `leader_card_id`=:leader_card_id WHERE `token`=:token"),
             dict(name=name, leader_card_id=leader_card_id, token=token),
         )

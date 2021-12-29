@@ -5,9 +5,9 @@ from typing import List
 from typing import Optional
 
 # Third Party Library
-import sqlalchemy
 from pydantic import BaseModel
 from sqlalchemy import text
+from sqlalchemy.engine import CursorResult  # type: ignore
 
 # Local Library
 from .db import engine
@@ -71,7 +71,7 @@ class RoomUserRow(BaseModel):
 
 def create_room(live_id: int) -> int:
     with engine.begin() as conn:
-        result: sqlalchemy.engine.CursorResult = conn.execute(
+        result: CursorResult = conn.execute(
             text("INSERT INTO `room` SET `live_id`=:live_id, `joined_user_count`=:joined_user_count"),
             # text("INSERT INTO `room` (live_id, joined_user_count) VALUES (:live_id, :joined_user_count)"),
             dict(
@@ -82,28 +82,30 @@ def create_room(live_id: int) -> int:
         # TODO: need exception?
         print(f"{result=}")
         print(f"{result.lastrowid=}")
-        return result.lastrowid
+        room_id: int = result.lastrowid
+        return room_id
 
 
 def _update_room_user_count(conn, room_id: int, offset: int):
-    result: sqlalchemy.engine.CursorResult = conn.execute(
+    result_select: CursorResult = conn.execute(
         text("SELECT joined_user_count FROM `room` WHERE `room_id`=:room_id"),
         dict(room_id=room_id),
     )
-    joined_user_count: int = result.one().joined_user_count
+    joined_user_count: int = result_select.one().joined_user_count
     joined_user_count += offset
-    result: sqlalchemy.engine.CursorResult = conn.execute(
+    result_update: CursorResult = conn.execute(
         text("UPDATE `room` SET `joined_user_count`=:joined_user_count WHERE `room_id`=:room_id"),
         dict(
             joined_user_count=joined_user_count,
             room_id=room_id,
         ),
     )
+    print(f"{result_update=}")
     return
 
 
 def _create_room_user(conn, room_id: int, user_id: int, live_difficulty: LiveDifficulty, is_host: bool):
-    result: sqlalchemy.engine.CursorResult = conn.execute(
+    result: CursorResult = conn.execute(
         text(
             "INSERT INTO `room_user` "
             "SET "
@@ -122,7 +124,7 @@ def _create_room_user(conn, room_id: int, user_id: int, live_difficulty: LiveDif
     print(f"{result=}")
 
 
-def _get_room_info_by_id(conn, room_id: int) -> RoomInfo:
+def _get_room_info_by_id(conn, room_id: int) -> Optional[RoomInfo]:
     result = conn.execute(
         text("SELECT `room_id`, `live_id`, `joined_user_count` FROM `room` WHERE `room_id`=:room_id"),
         dict(room_id=room_id),
@@ -140,7 +142,7 @@ def join_room(user_id: int, room_id: int, live_difficulty: LiveDifficulty, is_ho
             if room_info is None:
                 return JoinRoomResult.Disbanded
             if room_info.joined_user_count >= room_info.max_user_count:
-                return JoinRoomResult.Full
+                return JoinRoomResult.RoomFull
             _create_room_user(conn, room_id, user_id, live_difficulty, is_host)
             _update_room_user_count(conn=conn, room_id=room_id, offset=1)
             return JoinRoomResult.Ok
@@ -170,7 +172,7 @@ def get_rooms_by_live_id(live_id: int) -> List[RoomInfo]:
         return list(_get_rooms_by_live_id(conn, live_id))
 
 
-def _get_room_status(conn, room_id: int) -> RoomInfo:
+def _get_room_status(conn, room_id: int) -> RoomStatus:
     result = conn.execute(
         text("SELECT `room_id`, `status` FROM `room` WHERE `room_id`=:room_id"),
         dict(room_id=room_id),
@@ -183,7 +185,7 @@ def get_room_status(room_id: int) -> RoomStatus:
         return _get_room_status(conn, room_id)
 
 
-def _get_room_users(conn, room_id: int, user_id_req: int) -> Iterator[RoomInfo]:
+def _get_room_users(conn, room_id: int, user_id_req: int) -> Iterator[RoomUser]:
     result = conn.execute(
         text("SELECT `room_id`, `user_id`, `live_difficulty`, `is_host` FROM `room_user` WHERE `room_id`=:room_id"),
         dict(room_id=room_id),
