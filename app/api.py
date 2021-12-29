@@ -103,7 +103,7 @@ def room_create(req: RoomCreateRequest, token: str = Depends(get_auth_token)):
     room_id: int = room_model.create_room(req.live_id)
     user: Optional[SafeUser] = model.get_user_by_token(token)
     if user is None:
-        return HTTPException(status_code=400, detail="Unknown user token")
+        raise HTTPException(status_code=400, detail="Unknown user token")
     room_model.join_room(room_id=room_id, user_id=user.id, live_difficulty=req.select_difficulty, is_host=True)
     logger.info(f"create room: {room_id=}")
     return RoomCreateResponse(room_id=room_id)
@@ -140,7 +140,7 @@ def room_wait(req: RoomWaitRequest, token: str = Depends(get_auth_token)):
     logger.info(f"{room_status=}")
     user: Optional[SafeUser] = model.get_user_by_token(token)
     if user is None:
-        return HTTPException(status_code=400, detail="Unknown user token")
+        raise HTTPException(status_code=400, detail="Unknown user token")
     room_user_list: List[room_model.RoomUser] = room_model.get_room_users(room_id=req.room_id, user_id_req=user.id)
     logger.info(f"{room_user_list=}")
     return RoomWaitResponse(status=room_status.status, room_user_list=room_user_list)
@@ -159,7 +159,7 @@ class RoomJoinResponse(BaseModel):
 def room_join(req: RoomJoinRequest, token: str = Depends(get_auth_token)):
     user: Optional[SafeUser] = model.get_user_by_token(token)
     if user is None:
-        return HTTPException(status_code=400, detail="Unknown user token")
+        raise HTTPException(status_code=400, detail="Unknown user token")
     join_room_result: room_model.JoinRoomResult = room_model.join_room(
         room_id=req.room_id,
         user_id=user.id,
