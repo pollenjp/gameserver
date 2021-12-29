@@ -144,7 +144,7 @@ def join_room(user_id: int, room_id: int, live_difficulty: LiveDifficulty, is_ho
             _create_room_user(conn, room_id, user_id, live_difficulty, is_host)
             _update_room_user_count(conn=conn, room_id=room_id, offset=1)
             return JoinRoomResult.Ok
-        except object as e:
+        except Exception as e:
             # Standard Library
             import traceback
 

@@ -2,6 +2,7 @@
 from fastapi.testclient import TestClient
 
 # First Party Library
+from app import room_model
 from app.api import app
 
 client = TestClient(app)
@@ -26,7 +27,14 @@ def _auth_header(i=0):
 
 
 def test_room_1():
-    response = client.post("/room/create", headers=_auth_header(), json={"live_id": 1001, "select_difficulty": 1})
+    response = client.post(
+        "/room/create",
+        headers=_auth_header(),
+        json={
+            "live_id": 1001,
+            "select_difficulty": room_model.LiveDifficulty.normal,
+        },
+    )
     assert response.status_code == 200
 
     room_id = response.json()["room_id"]
@@ -35,6 +43,18 @@ def test_room_1():
     response = client.post("/room/list", json={"live_id": 1001})
     assert response.status_code == 200
     print("room/list response:", response.json())
+
+    response = client.post(
+        "/room/join",
+        headers=_auth_header(),
+        json={
+            "room_id": room_id,
+            "select_difficulty": room_model.LiveDifficulty.hard,
+        },
+    )
+    assert response.status_code == 200
+    print("room/join response:", response.json())
+    assert response.json()["join_room_result"] in [result for result in room_model.JoinRoomResult]
 
     response = client.post("/room/wait", headers=_auth_header(), json={"room_id": room_id})
     assert response.status_code == 200
