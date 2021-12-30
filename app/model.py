@@ -4,6 +4,7 @@ from logging import getLogger
 from typing import Optional
 
 # Third Party Library
+from fastapi import HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.engine import CursorResult  # type: ignore
@@ -61,9 +62,12 @@ def _get_user_by_token(conn, token: str) -> Optional[SafeUser]:
     return SafeUser.from_orm(row)
 
 
-def get_user_by_token(token: str) -> Optional[SafeUser]:
+def get_user_by_token(token: str) -> SafeUser:
     with engine.begin() as conn:
-        return _get_user_by_token(conn, token)
+        user: Optional[SafeUser] = _get_user_by_token(conn, token)
+        if user is None:
+            raise HTTPException(status_code=400, detail="Unknown user token")
+        return user
 
 
 def update_user(token: str, name: str, leader_card_id: int) -> None:

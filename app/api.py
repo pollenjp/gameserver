@@ -3,7 +3,6 @@ from logging import getLogger
 from logging.config import dictConfig
 from pathlib import Path
 from typing import List
-from typing import Optional
 
 # Third Party Library
 import yaml
@@ -70,10 +69,12 @@ def get_auth_token(cred: HTTPAuthorizationCredentials = Depends(bearer)) -> str:
 
 @app.get("/user/me", response_model=SafeUser)
 def user_me(token: str = Depends(get_auth_token)):
-    user = model.get_user_by_token(token)
-    if user is None:
+    try:
+        user: SafeUser = model.get_user_by_token(token)
+    except HTTPException as e:
+        logger.warning(f"{e=}", exc_info=True)
         raise HTTPException(status_code=404)
-    # logger.info(f"user_me({token=}, {user=})")
+    logger.info(f"user_me ({token=}, {user=})")
     return user
 
 
@@ -101,9 +102,7 @@ class RoomCreateResponse(BaseModel):
 @app.post("/room/create", response_model=RoomCreateResponse)
 def room_create(req: RoomCreateRequest, token: str = Depends(get_auth_token)):
     room_id: int = room_model.create_room(req.live_id)
-    user: Optional[SafeUser] = model.get_user_by_token(token)
-    if user is None:
-        raise HTTPException(status_code=400, detail="Unknown user token")
+    user: SafeUser = model.get_user_by_token(token)
     room_model.join_room(room_id=room_id, user_id=user.id, live_difficulty=req.select_difficulty, is_host=True)
     logger.info(f"create room: {room_id=}")
     return RoomCreateResponse(room_id=room_id)
@@ -138,9 +137,7 @@ class RoomWaitResponse(BaseModel):
 def room_wait(req: RoomWaitRequest, token: str = Depends(get_auth_token)):
     room_status: room_model.RoomStatus = room_model.get_room_status(room_id=req.room_id)
     logger.info(f"{room_status=}")
-    user: Optional[SafeUser] = model.get_user_by_token(token)
-    if user is None:
-        raise HTTPException(status_code=400, detail="Unknown user token")
+    user: SafeUser = model.get_user_by_token(token)
     room_user_list: List[room_model.RoomUser] = room_model.get_room_users(room_id=req.room_id, user_id_req=user.id)
     logger.info(f"{room_user_list=}")
     return RoomWaitResponse(status=room_status.status, room_user_list=room_user_list)
@@ -157,9 +154,7 @@ class RoomJoinResponse(BaseModel):
 
 @app.post("/room/join", response_model=RoomJoinResponse)
 def room_join(req: RoomJoinRequest, token: str = Depends(get_auth_token)):
-    user: Optional[SafeUser] = model.get_user_by_token(token)
-    if user is None:
-        raise HTTPException(status_code=400, detail="Unknown user token")
+    user: SafeUser = model.get_user_by_token(token)
     join_room_result: room_model.JoinRoomResult = room_model.join_room(
         room_id=req.room_id,
         user_id=user.id,
@@ -188,9 +183,7 @@ class RoomEndRequest(BaseModel):
 def room_end(req: RoomEndRequest, token: str = Depends(get_auth_token)):
     if len(req.judge_count_list) != 5:
         raise HTTPException(status_code=400, detail="judge_count_list must be 5")
-    user: Optional[SafeUser] = model.get_user_by_token(token)
-    if user is None:
-        raise HTTPException(status_code=400, detail="Unknown user token")
+    user: SafeUser = model.get_user_by_token(token)
     room_user_result: room_model.RoomUserResult = room_model.RoomUserResult(
         room_id=req.room_id,
         user_id=user.id,
