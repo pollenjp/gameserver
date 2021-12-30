@@ -121,7 +121,7 @@ class TestRoom:
         response = client.post(
             "/room/end",
             headers=self.auth_header,
-            json={"room_id": room_id, "score": 1234, "judge_count_list": [4, 3, 2]},
+            json={"room_id": room_id, "score": 1234, "judge_count_list": [5, 4, 3, 2, 1]},
         )
         assert response.status_code == 200
         logger.info("room/end response:", response.json())

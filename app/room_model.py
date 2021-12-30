@@ -28,6 +28,23 @@ class RoomDBTableName:
     status: str = "status"  # NOT NULL DEFAULT 1
 
 
+class RoomUserDBTableName:
+    """table column names"""
+
+    table_name: str = "room_user"
+
+    room_id: str = "room_id"  # primary key
+    user_id: str = "user_id"  # primary key
+    live_difficulty: str = "live_difficulty"
+    is_host: str = "is_host"
+    judge_count_perfect: str = "judge_count_perfect"
+    judge_count_great: str = "judge_count_great"
+    judge_count_good: str = "judge_count_good"
+    judge_count_bad: str = "judge_count_bad"
+    judge_count_miss: str = "judge_count_miss"
+    score: str = "score"
+
+
 class LiveDifficulty(IntEnum):
     normal: int = 1
     hard: int = 2
@@ -70,35 +87,6 @@ class RoomUser(BaseModel):
     live_difficulty: int
     is_me: bool = False
     is_host: bool
-
-    class Config:
-        orm_mode = True
-
-
-class RoomUserDBTableName:
-    """table column names"""
-
-    table_name: str = "room_user"
-
-    room_id: str = "room_id"  # primary key
-    user_id: str = "user_id"  # primary key
-    live_difficulty: str = "live_difficulty"
-    is_host: str = "is_host"
-    judge_count_perfect: str = "judge_count_perfect"
-    judge_count_great: str = "judge_count_great"
-    judge_count_good: str = "judge_count_good"
-    judge_count_bad: str = "judge_count_bad"
-    judge_count_miss: str = "judge_count_miss"
-
-
-class RoomUserResult(BaseModel):
-    room_id: int
-    user_id: str
-    judge_count_perfect: int
-    judge_count_great: int
-    judge_count_good: int
-    judge_count_bad: int
-    judge_count_miss: int
 
     class Config:
         orm_mode = True
@@ -295,6 +283,58 @@ def start_room(room_id: int) -> None:
             dict(
                 status=int(WaitRoomStatus.LiveStart),
                 room_id=room_id,
+            ),
+        )
+        logger.info(f"{result=}")
+        return
+
+
+class RoomUserResult(BaseModel):
+    room_id: int
+    user_id: int
+    judge_count_perfect: int
+    judge_count_great: int
+    judge_count_good: int
+    judge_count_bad: int
+    judge_count_miss: int
+    score: int
+
+    class Config:
+        orm_mode = True
+
+
+class ResultUser(BaseModel):
+    user_id: int
+    judge_count_list: List[int]
+    score: int
+
+
+def store_room_user_result(room_user_result: RoomUserResult) -> None:
+    with engine.begin() as conn:
+        query: str = " ".join(
+            [
+                f"UPDATE `{ RoomUserDBTableName.table_name }`",
+                f"SET `{ RoomUserDBTableName.judge_count_perfect }`=:judge_count_perfect",
+                f",`{ RoomUserDBTableName.judge_count_great    }`=:judge_count_great",
+                f",`{ RoomUserDBTableName.judge_count_good   }`=:judge_count_good",
+                f",`{ RoomUserDBTableName.judge_count_bad     }`=:judge_count_bad",
+                f",`{ RoomUserDBTableName.judge_count_miss    }`=:judge_count_miss",
+                f",`{ RoomUserDBTableName.score    }`=:score",
+                f"WHERE `{ RoomUserDBTableName.room_id }`=:room_id",
+                f"AND `{ RoomUserDBTableName.user_id }`=:user_id",
+            ]
+        )
+        result = conn.execute(
+            text(query),
+            dict(
+                judge_count_perfect=room_user_result.judge_count_perfect,
+                judge_count_great=room_user_result.judge_count_great,
+                judge_count_good=room_user_result.judge_count_good,
+                judge_count_bad=room_user_result.judge_count_bad,
+                judge_count_miss=room_user_result.judge_count_miss,
+                score=room_user_result.score,
+                room_id=room_user_result.room_id,
+                user_id=room_user_result.user_id,
             ),
         )
         logger.info(f"{result=}")

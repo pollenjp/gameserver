@@ -176,3 +176,30 @@ class RoomStartRequest(BaseModel):
 def room_start(req: RoomStartRequest, token: str = Depends(get_auth_token)):
     room_model.start_room(req.room_id)
     return EmptyResponse()
+
+
+class RoomEndRequest(BaseModel):
+    room_id: int
+    judge_count_list: List[int]
+    score: int
+
+
+@app.post("/room/end", response_model=EmptyResponse)
+def room_end(req: RoomEndRequest, token: str = Depends(get_auth_token)):
+    if len(req.judge_count_list) != 5:
+        raise HTTPException(status_code=400, detail="judge_count_list must be 5")
+    user: Optional[SafeUser] = model.get_user_by_token(token)
+    if user is None:
+        raise HTTPException(status_code=400, detail="Unknown user token")
+    room_user_result: room_model.RoomUserResult = room_model.RoomUserResult(
+        room_id=req.room_id,
+        user_id=user.id,
+        judge_count_perfect=req.judge_count_list[0],
+        judge_count_great=req.judge_count_list[1],
+        judge_count_good=req.judge_count_list[2],
+        judge_count_bad=req.judge_count_list[3],
+        judge_count_miss=req.judge_count_list[4],
+        score=req.score,
+    )
+    room_model.store_room_user_result(room_user_result=room_user_result)
+    return EmptyResponse()

@@ -23,5 +23,11 @@ CREATE TABLE `room_user` (
   `user_id` bigint NOT NULL,
   `live_difficulty` int NOT NULL,
   `is_host` boolean NOT NULL,
+  `judge_count_perfect` int DEFAULT 0,
+  `judge_count_great` int DEFAULT 0,
+  `judge_count_good` int DEFAULT 0,
+  `judge_count_bad` int DEFAULT 0,
+  `judge_count_miss` int DEFAULT 0,
+  `score` int DEFAULT 0,
   PRIMARY KEY (`room_id`, `user_id`)
 );
