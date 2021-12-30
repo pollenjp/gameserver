@@ -196,3 +196,16 @@ def room_end(req: RoomEndRequest, token: str = Depends(get_auth_token)):
     )
     room_model.store_room_user_result(room_user_result=room_user_result)
     return EmptyResponse()
+
+
+class RoomResultRequest(BaseModel):
+    room_id: int
+
+
+class RoomResultResponse(BaseModel):
+    result_user_list: List[room_model.ResultUser]
+
+
+@app.post("/room/result", response_model=RoomResultResponse)
+def room_result(req: RoomResultRequest):
+    return RoomResultResponse(result_user_list=room_model.get_result_user_list(req.room_id))

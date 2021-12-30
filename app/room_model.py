@@ -9,6 +9,7 @@ from typing import Optional
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.engine import CursorResult  # type: ignore
+from sqlalchemy.exc import NoResultFound  # type: ignore
 
 # Local Library
 from .db import engine
@@ -43,6 +44,15 @@ class RoomUserDBTableName:
     judge_count_bad: str = "judge_count_bad"
     judge_count_miss: str = "judge_count_miss"
     score: str = "score"
+
+
+const_judge_count_order: List[int] = [
+    RoomUserDBTableName.judge_count_perfect,
+    RoomUserDBTableName.judge_count_great,
+    RoomUserDBTableName.judge_count_good,
+    RoomUserDBTableName.judge_count_bad,
+    RoomUserDBTableName.judge_count_miss,
+]
 
 
 class LiveDifficulty(IntEnum):
@@ -234,7 +244,7 @@ def get_room_status(room_id: int) -> RoomStatus:
         return _get_room_status(conn, room_id)
 
 
-def _get_room_users(conn, room_id: int, user_id_req: int) -> Iterator[RoomUser]:
+def _get_room_users(conn, room_id: int, user_id_req: int = None) -> Iterator[RoomUser]:
     query: str = " ".join(
         [
             "SELECT",
@@ -250,7 +260,7 @@ def _get_room_users(conn, room_id: int, user_id_req: int) -> Iterator[RoomUser]:
     for row in result.all():
         room_user: RoomUser = RoomUser.from_orm(row)
         logger.info(f"{room_user}")
-        if room_user.user_id == user_id_req:
+        if user_id_req is not None and room_user.user_id == user_id_req:
             room_user.is_me = True
         yield room_user
 
@@ -303,12 +313,6 @@ class RoomUserResult(BaseModel):
         orm_mode = True
 
 
-class ResultUser(BaseModel):
-    user_id: int
-    judge_count_list: List[int]
-    score: int
-
-
 def store_room_user_result(room_user_result: RoomUserResult) -> None:
     with engine.begin() as conn:
         query: str = " ".join(
@@ -339,3 +343,66 @@ def store_room_user_result(room_user_result: RoomUserResult) -> None:
         )
         logger.info(f"{result=}")
         return
+
+
+def _get_room_user_result(conn, room_id: int, user_id: int) -> Optional[RoomUserResult]:
+    query: str = " ".join(
+        [
+            f"SELECT `{ RoomUserDBTableName.room_id }`",
+            f",`{ RoomUserDBTableName.user_id }`",
+            f",`{ RoomUserDBTableName.judge_count_perfect }`",
+            f",`{ RoomUserDBTableName.judge_count_great }`",
+            f",`{ RoomUserDBTableName.judge_count_good }`",
+            f",`{ RoomUserDBTableName.judge_count_bad }`",
+            f",`{ RoomUserDBTableName.judge_count_miss }`",
+            f",`{ RoomUserDBTableName.score }`",
+            f"FROM `{ RoomUserDBTableName.table_name }`",
+            f"WHERE `{ RoomUserDBTableName.room_id }`=:room_id",
+            f"AND `{ RoomUserDBTableName.user_id }`=:user_id",
+        ]
+    )
+    result = conn.execute(
+        text(query),
+        dict(room_id=room_id, user_id=user_id),
+    )
+    try:
+        row = result.one()
+    except NoResultFound as e:
+        logger.warning(f"{e=}", exc_info=True)
+        return None
+    return RoomUserResult.from_orm(row)
+
+
+class ResultUser(BaseModel):
+    user_id: int
+    judge_count_list: List[int]
+    score: int
+
+
+def get_result_user_list(room_id: int) -> List[ResultUser]:
+    with engine.begin() as conn:
+        room_status: RoomStatus = _get_room_status(conn, room_id)
+        if room_status.status == WaitRoomStatus.Waiting:
+            return []
+
+        result_user_list: List[ResultUser] = []
+
+        room_user: RoomUser
+        for room_user in _get_room_users(conn, room_id=room_id):
+            room_user_result: Optional[RoomUserResult] = _get_room_user_result(
+                conn,
+                room_id=room_id,
+                user_id=room_user.user_id,
+            )
+            if room_user_result is None:
+                logger.warning(f"{room_user.user_id=} is empty")
+                continue
+
+            result_user_list.append(
+                ResultUser(
+                    user_id=room_user.user_id,
+                    judge_count_list=[getattr(room_user_result, judge_name) for judge_name in const_judge_count_order],
+                    score=room_user_result.score,
+                )
+            )
+        return result_user_list
