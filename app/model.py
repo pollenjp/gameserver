@@ -72,7 +72,7 @@ def get_user_by_token(token: str) -> SafeUser:
 
 def update_user(token: str, name: str, leader_card_id: int) -> None:
     with engine.begin() as conn:
-        user: Optional[SafeUser] = get_user_by_token(token)
+        user: Optional[SafeUser] = _get_user_by_token(conn, token)
         if user is None:
             logger.warning(f"user not found. {name=}, {leader_card_id=}")
             raise InvalidToken
