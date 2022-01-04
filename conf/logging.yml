@@ -31,4 +31,5 @@ loggers:
     handlers:
       - console_handler
       - file_handler
-disable_existing_loggers: true
+# disable_existing_loggers: true
+disable_existing_loggers: false

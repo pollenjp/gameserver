@@ -13,7 +13,8 @@ from fastapi.security.http import HTTPAuthorizationCredentials
 from fastapi.security.http import HTTPBearer
 from pydantic import BaseModel
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
+if True:
     filepath = Path(__file__).parents[1] / "conf" / "logging.yml"
     with open(file=str(filepath), mode="rt") as f:
         config_dict = yaml.safe_load(f)
@@ -103,7 +104,13 @@ class RoomCreateResponse(BaseModel):
 def room_create(req: RoomCreateRequest, token: str = Depends(get_auth_token)):
     room_id: int = room_model.create_room(req.live_id)
     user: SafeUser = model.get_user_by_token(token)
-    room_model.join_room(room_id=room_id, user_id=user.id, live_difficulty=req.select_difficulty, is_host=True)
+    room_model.join_room(
+        room_id=room_id,
+        user_id=user.id,
+        leader_card_id=user.leader_card_id,
+        live_difficulty=req.select_difficulty,
+        is_host=True,
+    )
     logger.info(f"create room: {room_id=}")
     return RoomCreateResponse(room_id=room_id)
 
@@ -209,3 +216,16 @@ class RoomResultResponse(BaseModel):
 @app.post("/room/result", response_model=RoomResultResponse)
 def room_result(req: RoomResultRequest):
     return RoomResultResponse(result_user_list=room_model.get_result_user_list(req.room_id))
+
+
+# class RoomLeaveRequest(BaseModel):
+#     room_id: int
+
+
+# class RoomLeaveResponse(BaseModel):
+#     result_user_list: List[room_model.ResultUser]
+
+
+# @app.post("/room/leave", response_model=RoomResultResponse)
+# def room_leave(req: RoomResultRequest):
+#     return RoomResultResponse(result_user_list=room_model.get_result_user_list(req.room_id))
