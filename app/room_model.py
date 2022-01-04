@@ -36,7 +36,8 @@ class RoomUserDBTableName:
 
     room_id: str = "room_id"  # primary key
     user_id: str = "user_id"  # primary key
-    live_difficulty: str = "live_difficulty"
+    leader_card_id: str = "leader_card_id"
+    select_difficulty: str = "select_difficulty"
     is_host: str = "is_host"
     judge_count_perfect: str = "judge_count_perfect"
     judge_count_great: str = "judge_count_great"
@@ -94,7 +95,8 @@ class RoomInfo(BaseModel):
 class RoomUser(BaseModel):
     room_id: int
     user_id: int
-    live_difficulty: int
+    leader_card_id: int
+    select_difficulty: int
     is_me: bool = False
     is_host: bool
 
@@ -148,14 +150,17 @@ def _update_room_user_count(conn, room_id: int, offset: int):
     return
 
 
-def _create_room_user(conn, room_id: int, user_id: int, live_difficulty: LiveDifficulty, is_host: bool):
+def _create_room_user(
+    conn, room_id: int, user_id: int, leader_card_id: int, live_difficulty: LiveDifficulty, is_host: bool
+):
     query: str = " ".join(
         [
             f"INSERT INTO `{ RoomUserDBTableName.table_name }`",
             "SET",
             f"`{ RoomUserDBTableName.room_id }`=:room_id,",
             f"`{ RoomUserDBTableName.user_id }`=:user_id,",
-            f"`{ RoomUserDBTableName.live_difficulty }`=:live_difficulty,",
+            f"`{ RoomUserDBTableName.leader_card_id }`=:leader_card_id,",
+            f"`{ RoomUserDBTableName.select_difficulty }`=:live_difficulty,",
             f"`{ RoomUserDBTableName.is_host }`=:is_host",
         ]
     )
@@ -164,6 +169,7 @@ def _create_room_user(conn, room_id: int, user_id: int, live_difficulty: LiveDif
         dict(
             room_id=room_id,
             user_id=user_id,
+            leader_card_id=leader_card_id,
             live_difficulty=int(live_difficulty),
             is_host=is_host,
         ),
@@ -186,7 +192,9 @@ def _get_room_info_by_id(conn, room_id: int) -> Optional[RoomInfo]:
     return RoomInfo.from_orm(row)
 
 
-def join_room(user_id: int, room_id: int, live_difficulty: LiveDifficulty, is_host: bool = False) -> JoinRoomResult:
+def join_room(
+    user_id: int, room_id: int, leader_card_id: int, live_difficulty: LiveDifficulty, is_host: bool = False
+) -> JoinRoomResult:
     with engine.begin() as conn:
         try:
             room_info: Optional[RoomInfo] = _get_room_info_by_id(conn, room_id=room_id)
@@ -194,7 +202,14 @@ def join_room(user_id: int, room_id: int, live_difficulty: LiveDifficulty, is_ho
                 return JoinRoomResult.Disbanded
             if room_info.joined_user_count >= room_info.max_user_count:
                 return JoinRoomResult.RoomFull
-            _create_room_user(conn, room_id, user_id, live_difficulty, is_host)
+            _create_room_user(
+                conn=conn,
+                room_id=room_id,
+                user_id=user_id,
+                leader_card_id=leader_card_id,
+                live_difficulty=live_difficulty,
+                is_host=is_host,
+            )
             _update_room_user_count(conn=conn, room_id=room_id, offset=1)
             return JoinRoomResult.Ok
         except Exception as e:
@@ -206,16 +221,25 @@ def join_room(user_id: int, room_id: int, live_difficulty: LiveDifficulty, is_ho
             return JoinRoomResult.OhterError
 
 
-def _get_rooms_by_live_id(conn, live_id: int):
-    """
-    to list rooms
+def _get_rooms_by_live_id(conn, live_id: int) -> Iterator[RoomInfo]:
+    """list rooms
+
+    Args:
+        conn ([type]): sql connection
+        live_id (int):
+            If 0, get all rooms.
+            Others, get rooms by live_id.
+
+
+    Yields:
+        [type]: [description]
     """
     query: str = " ".join(
         [
             f"SELECT `{ RoomDBTableName.room_id }`, `{ RoomDBTableName.live_id }`, `{ RoomDBTableName.joined_user_count }`",
             f"FROM `{ RoomDBTableName.table_name }`",
-            f"WHERE `{ RoomDBTableName.live_id }`=:live_id",
         ]
+        + ([] if live_id == 0 else [f"WHERE `{ RoomDBTableName.live_id }`=:live_id"])
     )
     result = conn.execute(text(query), dict(live_id=live_id))
     for row in result.all():
@@ -250,7 +274,8 @@ def _get_room_users(conn, room_id: int, user_id_req: int = None) -> Iterator[Roo
             "SELECT",
             f"`{ RoomUserDBTableName.room_id }`,",
             f"`{ RoomUserDBTableName.user_id }`,",
-            f"`{ RoomUserDBTableName.live_difficulty }`,",
+            f"`{ RoomUserDBTableName.leader_card_id }`,",
+            f"`{ RoomUserDBTableName.select_difficulty }`,",
             f"`{ RoomUserDBTableName.is_host }`",
             f"FROM `{ RoomUserDBTableName.table_name }`",
             f"WHERE `{ RoomUserDBTableName.room_id }`=:room_id",
@@ -318,12 +343,12 @@ def store_room_user_result(room_user_result: RoomUserResult) -> None:
         query: str = " ".join(
             [
                 f"UPDATE `{ RoomUserDBTableName.table_name }`",
-                f"SET `{ RoomUserDBTableName.judge_count_perfect }`=:judge_count_perfect",
-                f",`{ RoomUserDBTableName.judge_count_great    }`=:judge_count_great",
-                f",`{ RoomUserDBTableName.judge_count_good   }`=:judge_count_good",
-                f",`{ RoomUserDBTableName.judge_count_bad     }`=:judge_count_bad",
-                f",`{ RoomUserDBTableName.judge_count_miss    }`=:judge_count_miss",
-                f",`{ RoomUserDBTableName.score    }`=:score",
+                f"SET `{ RoomUserDBTableName.judge_count_perfect }`=:judge_count_perfect,",
+                f"`{ RoomUserDBTableName.judge_count_great    }`=:judge_count_great,",
+                f"`{ RoomUserDBTableName.judge_count_good   }`=:judge_count_good,",
+                f"`{ RoomUserDBTableName.judge_count_bad     }`=:judge_count_bad,",
+                f"`{ RoomUserDBTableName.judge_count_miss    }`=:judge_count_miss,",
+                f"`{ RoomUserDBTableName.score    }`=:score",
                 f"WHERE `{ RoomUserDBTableName.room_id }`=:room_id",
                 f"AND `{ RoomUserDBTableName.user_id }`=:user_id",
             ]
@@ -348,14 +373,14 @@ def store_room_user_result(room_user_result: RoomUserResult) -> None:
 def _get_room_user_result(conn, room_id: int, user_id: int) -> Optional[RoomUserResult]:
     query: str = " ".join(
         [
-            f"SELECT `{ RoomUserDBTableName.room_id }`",
-            f",`{ RoomUserDBTableName.user_id }`",
-            f",`{ RoomUserDBTableName.judge_count_perfect }`",
-            f",`{ RoomUserDBTableName.judge_count_great }`",
-            f",`{ RoomUserDBTableName.judge_count_good }`",
-            f",`{ RoomUserDBTableName.judge_count_bad }`",
-            f",`{ RoomUserDBTableName.judge_count_miss }`",
-            f",`{ RoomUserDBTableName.score }`",
+            f"SELECT `{ RoomUserDBTableName.room_id }`,",
+            f"`{ RoomUserDBTableName.user_id }`,",
+            f"`{ RoomUserDBTableName.judge_count_perfect }`,",
+            f"`{ RoomUserDBTableName.judge_count_great }`,",
+            f"`{ RoomUserDBTableName.judge_count_good }`,",
+            f"`{ RoomUserDBTableName.judge_count_bad }`,",
+            f"`{ RoomUserDBTableName.judge_count_miss }`,",
+            f"`{ RoomUserDBTableName.score }`",
             f"FROM `{ RoomUserDBTableName.table_name }`",
             f"WHERE `{ RoomUserDBTableName.room_id }`=:room_id",
             f"AND `{ RoomUserDBTableName.user_id }`=:user_id",
