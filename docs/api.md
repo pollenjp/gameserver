@@ -52,7 +52,7 @@
 | name | str | ユーザー名 |
 | leader_card_id | int | 設定アバター |
 | select_difficulty | LiveDifficulty | 選択難易度 |
-| is_me | bool | リクエスト投げたユーザーと同じか ※user_idが事前にクライアントに返されるのであれば不要 |
+| is_me | bool | リクエスト投げたユーザーと同じか |
 | is_host | bool | 部屋を立てた人か |
 
 ### ResultUser
@@ -165,3 +165,18 @@
 | name | type | memo |
 |---|---|---|
 | result_user_list | list[ResultUser] | 自身を含む各ユーザーの結果。※全員揃っていない待機中は[]が返却される想定 |
+
+
+### /room/leave
+ルーム退出リクエスト。オーナーも `/room/join` で参加した参加者も実行できる。
+
+#### Request
+| name | type | memo |
+|---|---|---|
+| room_id | int | 対象ルーム |
+
+#### Response
+| name | type | memo |
+|---|---|---|
+| | | |
+
