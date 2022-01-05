@@ -107,6 +107,7 @@ def room_create(req: RoomCreateRequest, token: str = Depends(get_auth_token)):
     room_model.join_room(
         room_id=room_id,
         user_id=user.id,
+        user_name=user.name,
         leader_card_id=user.leader_card_id,
         live_difficulty=req.select_difficulty,
         is_host=True,
@@ -137,6 +138,7 @@ class RoomWaitRequest(BaseModel):
 
 class WaitResponseRoomUser(BaseModel):
     user_id: int
+    name: str
     leader_card_id: int
     select_difficulty: int
     is_me: bool = False
@@ -158,9 +160,10 @@ def room_wait(req: RoomWaitRequest, token: str = Depends(get_auth_token)):
     wait_response_room_user_list: List[WaitResponseRoomUser] = [
         WaitResponseRoomUser(
             user_id=room_user.user_id,
+            name=room_user.user_name,
             leader_card_id=room_user.leader_card_id,
             select_difficulty=room_user.select_difficulty,
-            is_me=room_user.user_id,
+            is_me=room_user.is_me,
             is_host=room_user.is_host,
         )
         for room_user in room_user_list
@@ -184,6 +187,7 @@ def room_join(req: RoomJoinRequest, token: str = Depends(get_auth_token)):
     join_room_result: room_model.JoinRoomResult = room_model.join_room(
         room_id=req.room_id,
         user_id=user.id,
+        user_name=user.name,
         leader_card_id=user.leader_card_id,
         live_difficulty=req.select_difficulty,
     )

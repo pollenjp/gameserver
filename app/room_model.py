@@ -36,6 +36,7 @@ class RoomUserDBTableName:
 
     room_id: str = "room_id"  # primary key
     user_id: str = "user_id"  # primary key
+    user_name: str = "user_name"
     leader_card_id: str = "leader_card_id"
     select_difficulty: str = "select_difficulty"
     is_host: str = "is_host"
@@ -95,6 +96,7 @@ class RoomInfo(BaseModel):
 class RoomUser(BaseModel):
     room_id: int
     user_id: int
+    user_name: str
     leader_card_id: int
     select_difficulty: int
     is_me: bool = False
@@ -151,7 +153,13 @@ def _update_room_user_count(conn, room_id: int, offset: int):
 
 
 def _create_room_user(
-    conn, room_id: int, user_id: int, leader_card_id: int, live_difficulty: LiveDifficulty, is_host: bool
+    conn,
+    room_id: int,
+    user_id: int,
+    user_name: str,
+    leader_card_id: int,
+    live_difficulty: LiveDifficulty,
+    is_host: bool,
 ):
     query: str = " ".join(
         [
@@ -159,6 +167,7 @@ def _create_room_user(
             "SET",
             f"`{ RoomUserDBTableName.room_id }`=:room_id,",
             f"`{ RoomUserDBTableName.user_id }`=:user_id,",
+            f"`{ RoomUserDBTableName.user_name }`=:user_name,",
             f"`{ RoomUserDBTableName.leader_card_id }`=:leader_card_id,",
             f"`{ RoomUserDBTableName.select_difficulty }`=:live_difficulty,",
             f"`{ RoomUserDBTableName.is_host }`=:is_host",
@@ -169,6 +178,7 @@ def _create_room_user(
         dict(
             room_id=room_id,
             user_id=user_id,
+            user_name=user_name,
             leader_card_id=leader_card_id,
             live_difficulty=int(live_difficulty),
             is_host=is_host,
@@ -193,7 +203,12 @@ def _get_room_info_by_id(conn, room_id: int) -> Optional[RoomInfo]:
 
 
 def join_room(
-    user_id: int, room_id: int, leader_card_id: int, live_difficulty: LiveDifficulty, is_host: bool = False
+    user_id: int,
+    room_id: int,
+    user_name: str,
+    leader_card_id: int,
+    live_difficulty: LiveDifficulty,
+    is_host: bool = False,
 ) -> JoinRoomResult:
     with engine.begin() as conn:
         try:
@@ -206,6 +221,7 @@ def join_room(
                 conn=conn,
                 room_id=room_id,
                 user_id=user_id,
+                user_name=user_name,
                 leader_card_id=leader_card_id,
                 live_difficulty=live_difficulty,
                 is_host=is_host,
@@ -274,6 +290,7 @@ def _get_room_users(conn, room_id: int, user_id_req: int = None) -> Iterator[Roo
             "SELECT",
             f"`{ RoomUserDBTableName.room_id }`,",
             f"`{ RoomUserDBTableName.user_id }`,",
+            f"`{ RoomUserDBTableName.user_name }`,",
             f"`{ RoomUserDBTableName.leader_card_id }`,",
             f"`{ RoomUserDBTableName.select_difficulty }`,",
             f"`{ RoomUserDBTableName.is_host }`",

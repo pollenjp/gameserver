@@ -21,6 +21,7 @@ DROP TABLE IF EXISTS `room_user`;
 CREATE TABLE `room_user` (
   `room_id` bigint NOT NULL,
   `user_id` bigint NOT NULL,
+  `user_name` varchar(255) NOT NULL,
   `leader_card_id` int DEFAULT NULL,
   `select_difficulty` int NOT NULL,
   `is_host` boolean NOT NULL,
