@@ -46,6 +46,7 @@ class RoomUserDBTableName:
     judge_count_bad: str = "judge_count_bad"
     judge_count_miss: str = "judge_count_miss"
     score: str = "score"
+    end_playing: str = "end_playing"  # bool
 
 
 const_judge_count_order: List[int] = [
@@ -350,6 +351,7 @@ class RoomUserResult(BaseModel):
     judge_count_bad: int
     judge_count_miss: int
     score: int
+    end_playing: bool
 
     class Config:
         orm_mode = True
@@ -360,12 +362,18 @@ def store_room_user_result(room_user_result: RoomUserResult) -> None:
         query: str = " ".join(
             [
                 f"UPDATE `{ RoomUserDBTableName.table_name }`",
-                f"SET `{ RoomUserDBTableName.judge_count_perfect }`=:judge_count_perfect,",
-                f"`{ RoomUserDBTableName.judge_count_great    }`=:judge_count_great,",
-                f"`{ RoomUserDBTableName.judge_count_good   }`=:judge_count_good,",
-                f"`{ RoomUserDBTableName.judge_count_bad     }`=:judge_count_bad,",
-                f"`{ RoomUserDBTableName.judge_count_miss    }`=:judge_count_miss,",
-                f"`{ RoomUserDBTableName.score    }`=:score",
+                "SET",
+                ", ".join(
+                    (
+                        f"`{ RoomUserDBTableName.judge_count_perfect }`=:judge_count_perfect",
+                        f"`{ RoomUserDBTableName.judge_count_great    }`=:judge_count_great",
+                        f"`{ RoomUserDBTableName.judge_count_good   }`=:judge_count_good",
+                        f"`{ RoomUserDBTableName.judge_count_bad     }`=:judge_count_bad",
+                        f"`{ RoomUserDBTableName.judge_count_miss    }`=:judge_count_miss",
+                        f"`{ RoomUserDBTableName.score }`=:score",
+                        f"`{ RoomUserDBTableName.end_playing }`=:end_playing",
+                    )
+                ),
                 f"WHERE `{ RoomUserDBTableName.room_id }`=:room_id",
                 f"AND `{ RoomUserDBTableName.user_id }`=:user_id",
             ]
@@ -379,6 +387,7 @@ def store_room_user_result(room_user_result: RoomUserResult) -> None:
                 judge_count_bad=room_user_result.judge_count_bad,
                 judge_count_miss=room_user_result.judge_count_miss,
                 score=room_user_result.score,
+                end_playing=room_user_result.end_playing,
                 room_id=room_user_result.room_id,
                 user_id=room_user_result.user_id,
             ),
@@ -390,14 +399,20 @@ def store_room_user_result(room_user_result: RoomUserResult) -> None:
 def _get_room_user_result(conn, room_id: int, user_id: int) -> Optional[RoomUserResult]:
     query: str = " ".join(
         [
-            f"SELECT `{ RoomUserDBTableName.room_id }`,",
-            f"`{ RoomUserDBTableName.user_id }`,",
-            f"`{ RoomUserDBTableName.judge_count_perfect }`,",
-            f"`{ RoomUserDBTableName.judge_count_great }`,",
-            f"`{ RoomUserDBTableName.judge_count_good }`,",
-            f"`{ RoomUserDBTableName.judge_count_bad }`,",
-            f"`{ RoomUserDBTableName.judge_count_miss }`,",
-            f"`{ RoomUserDBTableName.score }`",
+            "SELECT",
+            ", ".join(
+                (
+                    f"`{ RoomUserDBTableName.room_id }`",
+                    f"`{ RoomUserDBTableName.user_id }`",
+                    f"`{ RoomUserDBTableName.judge_count_perfect }`",
+                    f"`{ RoomUserDBTableName.judge_count_great }`",
+                    f"`{ RoomUserDBTableName.judge_count_good }`",
+                    f"`{ RoomUserDBTableName.judge_count_bad }`",
+                    f"`{ RoomUserDBTableName.judge_count_miss }`",
+                    f"`{ RoomUserDBTableName.score }`",
+                    f"`{ RoomUserDBTableName.end_playing }`",
+                )
+            ),
             f"FROM `{ RoomUserDBTableName.table_name }`",
             f"WHERE `{ RoomUserDBTableName.room_id }`=:room_id",
             f"AND `{ RoomUserDBTableName.user_id }`=:user_id",
@@ -439,7 +454,9 @@ def get_result_user_list(room_id: int) -> List[ResultUser]:
             if room_user_result is None:
                 logger.warning(f"{room_user.user_id=} is empty")
                 continue
-
+            if room_user_result.end_playing is False:
+                # 他のプレイヤーが結果を返すまでポーリングし続ける
+                return []
             result_user_list.append(
                 ResultUser(
                     user_id=room_user.user_id,

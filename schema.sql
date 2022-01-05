@@ -31,5 +31,6 @@ CREATE TABLE `room_user` (
   `judge_count_bad` int DEFAULT 0,
   `judge_count_miss` int DEFAULT 0,
   `score` int DEFAULT 0,
+  `end_playing` boolean NOT NULL DEFAULT false,
   PRIMARY KEY (`room_id`, `user_id`)
 );

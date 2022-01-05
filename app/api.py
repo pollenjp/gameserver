@@ -224,6 +224,7 @@ def room_end(req: RoomEndRequest, token: str = Depends(get_auth_token)):
         judge_count_bad=req.judge_count_list[3],
         judge_count_miss=req.judge_count_list[4],
         score=req.score,
+        end_playing=True,
     )
     room_model.store_room_user_result(room_user_result=room_user_result)
     return EmptyResponse()
