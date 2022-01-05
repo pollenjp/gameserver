@@ -219,14 +219,12 @@ def room_result(req: RoomResultRequest):
     return RoomResultResponse(result_user_list=room_model.get_result_user_list(req.room_id))
 
 
-# class RoomLeaveRequest(BaseModel):
-#     room_id: int
+class RoomLeaveRequest(BaseModel):
+    room_id: int
 
 
-# class RoomLeaveResponse(BaseModel):
-#     result_user_list: List[room_model.ResultUser]
-
-
-# @app.post("/room/leave", response_model=RoomResultResponse)
-# def room_leave(req: RoomResultRequest):
-#     return RoomResultResponse(result_user_list=room_model.get_result_user_list(req.room_id))
+@app.post("/room/leave", response_model=EmptyResponse)
+def room_leave(req: RoomLeaveRequest, token: str = Depends(get_auth_token)):
+    user: SafeUser = model.get_user_by_token(token)
+    room_model.leave_room(room_id=req.room_id, user_id=user.id)
+    return EmptyResponse()

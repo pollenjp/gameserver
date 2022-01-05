@@ -431,3 +431,28 @@ def get_result_user_list(room_id: int) -> List[ResultUser]:
                 )
             )
         return result_user_list
+
+
+def leave_room(room_id: int, user_id: int) -> None:
+    with engine.begin() as conn:
+        query: str = " ".join(
+            [
+                f"DELETE FROM `{ RoomUserDBTableName.table_name }`",
+                f"WHERE `{ RoomUserDBTableName.room_id }`=:room_id",
+                f"AND `{ RoomUserDBTableName.user_id }`=:user_id",
+            ]
+        )
+        result = conn.execute(
+            text(query),
+            dict(
+                room_id=room_id,
+                user_id=user_id,
+            ),
+        )
+        if result.rowcount > 0:
+            logger.info(f"{user_id=} is left {room_id=}")
+        else:
+            logger.warning(f"{user_id=} is not in {room_id=}")
+            raise Exception(f"{user_id=} is not in {room_id=}")
+        logger.info(f"{result=}")
+        return
