@@ -165,6 +165,7 @@ def room_join(req: RoomJoinRequest, token: str = Depends(get_auth_token)):
     join_room_result: room_model.JoinRoomResult = room_model.join_room(
         room_id=req.room_id,
         user_id=user.id,
+        leader_card_id=user.leader_card_id,
         live_difficulty=req.select_difficulty,
     )
     return RoomJoinResponse(join_room_result=join_room_result)
