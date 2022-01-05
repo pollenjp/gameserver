@@ -135,9 +135,17 @@ class RoomWaitRequest(BaseModel):
     room_id: int
 
 
+class WaitResponseRoomUser(BaseModel):
+    user_id: int
+    leader_card_id: int
+    select_difficulty: int
+    is_me: bool = False
+    is_host: bool
+
+
 class RoomWaitResponse(BaseModel):
     status: room_model.WaitRoomStatus
-    room_user_list: List[room_model.RoomUser]
+    room_user_list: List[WaitResponseRoomUser]
 
 
 @app.post("/room/wait", response_model=RoomWaitResponse)
@@ -147,7 +155,18 @@ def room_wait(req: RoomWaitRequest, token: str = Depends(get_auth_token)):
     user: SafeUser = model.get_user_by_token(token)
     room_user_list: List[room_model.RoomUser] = room_model.get_room_users(room_id=req.room_id, user_id_req=user.id)
     logger.info(f"{room_user_list=}")
-    return RoomWaitResponse(status=room_status.status, room_user_list=room_user_list)
+    wait_response_room_user_list: List[WaitResponseRoomUser] = [
+        WaitResponseRoomUser(
+            user_id=room_user.user_id,
+            leader_card_id=room_user.leader_card_id,
+            select_difficulty=room_user.select_difficulty,
+            is_me=room_user.user_id,
+            is_host=room_user.is_host,
+        )
+        for room_user in room_user_list
+    ]
+    logger.info(f"{wait_response_room_user_list=}")
+    return RoomWaitResponse(status=room_status.status, room_user_list=wait_response_room_user_list)
 
 
 class RoomJoinRequest(BaseModel):
