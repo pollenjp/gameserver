@@ -1,4 +1,4 @@
-MYSQL_HOST := 172.0.0.1
+MYSQL_HOST := 127.0.0.1
 # MYSQL_HOST := 172.18.0.2
 
 run:
