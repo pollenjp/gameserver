@@ -469,27 +469,31 @@ def _drop_room(conn, room_id: int):
         logger.error(f"failed to drop {room_id=}")
 
 
+def _drop_room_user(conn, room_id: int, user_id: int) -> None:
+    query: str = " ".join(
+        [
+            f"DELETE FROM `{ RoomUserDBTableName.table_name }`",
+            f"WHERE `{ RoomUserDBTableName.room_id }`=:room_id",
+            f"AND `{ RoomUserDBTableName.user_id }`=:user_id",
+        ]
+    )
+    result = conn.execute(
+        text(query),
+        dict(
+            room_id=room_id,
+            user_id=user_id,
+        ),
+    )
+    if result.rowcount > 0:
+        logger.info(f"{user_id=} is left {room_id=}")
+    else:
+        logger.warning(f"{user_id=} is not in {room_id=}")
+        raise Exception(f"{user_id=} is not in {room_id=}")
+
+
 def leave_room(room_id: int, user_id: int) -> None:
     with engine.begin() as conn:
-        query: str = " ".join(
-            [
-                f"DELETE FROM `{ RoomUserDBTableName.table_name }`",
-                f"WHERE `{ RoomUserDBTableName.room_id }`=:room_id",
-                f"AND `{ RoomUserDBTableName.user_id }`=:user_id",
-            ]
-        )
-        result = conn.execute(
-            text(query),
-            dict(
-                room_id=room_id,
-                user_id=user_id,
-            ),
-        )
-        if result.rowcount > 0:
-            logger.info(f"{user_id=} is left {room_id=}")
-        else:
-            logger.warning(f"{user_id=} is not in {room_id=}")
-            raise Exception(f"{user_id=} is not in {room_id=}")
+        _drop_room_user(conn, room_id=room_id, user_id=user_id)
         joined_user_count: int = _update_room_user_count(conn=conn, room_id=room_id, offset=-1)
         if joined_user_count <= 0:
             _drop_room(conn=conn, room_id=room_id)
