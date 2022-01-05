@@ -132,3 +132,30 @@ class TestRoom:
         )
         assert response.status_code == 200
         logger.info("room/end response:", response.json())
+
+    def test_create_and_leave(self):
+        """create room and leave it"""
+
+        # create a host user
+        user_tokens: List[str] = _create_users(num=1)
+        auth_header: Dict[str, Any] = _get_auth_header(user_tokens[0])
+
+        # host a room
+        response = client.post(
+            "/room/create",
+            headers=auth_header,
+            json=dict(
+                live_id=1001,
+                select_difficulty=int(room_model.LiveDifficulty.normal),
+            ),
+        )
+        assert response.status_code == 200
+        room_id = response.json()["room_id"]
+        logger.info(f"room/create {room_id=}")
+
+        # leave the room
+        response = client.post(
+            "/room/leave",
+            headers=auth_header,
+            json=dict(room_id=room_id),
+        )
