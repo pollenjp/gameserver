@@ -123,34 +123,23 @@ def create_room(live_id: int) -> int:
         return room_id
 
 
-def _update_room_user_count(conn, room_id: int, offset: int) -> int:
-    query: str
-    query = " ".join(
-        [
-            f"SELECT { RoomDBTableName.joined_user_count }",
-            f"FROM `{ RoomDBTableName.table_name }`",
-            f"WHERE `{ RoomDBTableName.room_id }`=:room_id",
-        ]
-    )
-    result_select: CursorResult = conn.execute(text(query), dict(room_id=room_id))
-    joined_user_count: int = result_select.one().joined_user_count
-    joined_user_count += offset
-    query = " ".join(
+def _update_room_user_count(conn, room_id: int, offset: int) -> None:
+    query: str = " ".join(
         [
             f"UPDATE `{ RoomDBTableName.table_name }`",
-            f"SET `{ RoomDBTableName.joined_user_count }`=:joined_user_count",
+            f"SET `{ RoomDBTableName.joined_user_count }`={ RoomDBTableName.joined_user_count } + :offset",
             f"WHERE `{ RoomDBTableName.room_id }`=:room_id",
         ]
     )
-    result_update: CursorResult = conn.execute(
+    result: CursorResult = conn.execute(
         text(query),
         dict(
-            joined_user_count=joined_user_count,
+            offset=offset,
             room_id=room_id,
         ),
     )
-    logger.info(f"{result_update=}")
-    return joined_user_count
+    logger.info(f"{result=}")
+    return
 
 
 def _create_room_user(
@@ -217,11 +206,20 @@ def join_room(
 ) -> JoinRoomResult:
     with engine.begin() as conn:
         try:
+            # lock
+            conn.execute(
+                text(
+                    f"SELECT * FROM `{ RoomDBTableName.table_name }` WHERE `{ RoomDBTableName.room_id }`=:room_id FOR UPDATE"
+                ),
+                dict(room_id=room_id),
+            )
+
             room_info: Optional[RoomInfo] = _get_room_info_by_id(conn, room_id=room_id)
             if room_info is None:
                 return JoinRoomResult.Disbanded
             if room_info.joined_user_count >= room_info.max_user_count:
                 return JoinRoomResult.RoomFull
+
             _create_room_user(
                 conn=conn,
                 room_id=room_id,
@@ -232,6 +230,8 @@ def join_room(
                 is_host=is_host,
             )
             _update_room_user_count(conn=conn, room_id=room_id, offset=1)
+
+            _ = conn.execute(text("COMMIT"), {})
             return JoinRoomResult.Ok
         except Exception as e:
             logger.info(f"{e=}", exc_info=True)
@@ -486,14 +486,36 @@ def _drop_room(conn, room_id: int):
         logger.error(f"failed to drop {room_id=}")
 
 
+def _get_room_joined_user_count(conn, room_id: int) -> int:
+    query: str = " ".join(
+        [
+            f"SELECT `{ RoomDBTableName.joined_user_count }`",
+            f"FROM `{ RoomDBTableName.table_name }`",
+            f"WHERE `{ RoomDBTableName.room_id }`=:room_id",
+        ]
+    )
+    result = conn.execute(text(query), dict(room_id=room_id))
+    row = result.one()
+    return row["joined_user_count"]
+
+
 def _decrement_room_user_and_try_to_drop_room(conn, room_id: int) -> None:
+    # lock
+    conn.execute(
+        text(f"SELECT * FROM `{ RoomDBTableName.table_name }` WHERE `{ RoomDBTableName.room_id }`=:room_id FOR UPDATE"),
+        dict(room_id=room_id),
+    )
+    joined_user_count: int = _get_room_joined_user_count(conn, room_id=room_id)
     # decrement joined_user_count
-    joined_user_count: int = _update_room_user_count(conn=conn, room_id=room_id, offset=-1)
+    _update_room_user_count(conn=conn, room_id=room_id, offset=-1)
     if joined_user_count == 0:
         # drop the room
         _drop_room(conn=conn, room_id=room_id)
+        conn.execute(text("COMMIT"), {})
     elif joined_user_count < 0:
         logger.error(f"Something wrong... {joined_user_count=}")
+        raise Exception(f"Something wrong... {joined_user_count=}")
+    return
 
 
 def finish_playing(room_user_result: RoomUserResult) -> None:
