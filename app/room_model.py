@@ -49,7 +49,7 @@ class RoomUserDBTableName:
     end_playing: str = "end_playing"  # bool
 
 
-const_judge_count_order: List[int] = [
+const_judge_count_order: List[str] = [
     RoomUserDBTableName.judge_count_perfect,
     RoomUserDBTableName.judge_count_great,
     RoomUserDBTableName.judge_count_good,
@@ -194,11 +194,11 @@ def _create_room_user(
 
 def _get_room_info_by_id(conn, room_id: int) -> Optional[RoomInfo]:
     query: str = " ".join(
-        [
+        (
             f"SELECT `{ RoomDBTableName.room_id }`, `{ RoomDBTableName.live_id }`, `{ RoomDBTableName.joined_user_count }`",
             f"FROM `{ RoomDBTableName.table_name }`",
             f"WHERE `{ RoomDBTableName.room_id }`=:room_id",
-        ]
+        )
     )
     result = conn.execute(text(query), dict(room_id=room_id))
     row = result.one()
