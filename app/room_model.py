@@ -277,7 +277,12 @@ def _get_room_status(conn, room_id: int) -> RoomStatus:
         ]
     )
     result = conn.execute(text(query), dict(room_id=room_id))
-    return RoomStatus.from_orm(result.one())
+    try:
+        row = result.one()
+    except NoResultFound as e:
+        logger.error(f"{e=}", exc_info=True)
+        raise e
+    return RoomStatus.from_orm(row)
 
 
 def get_room_status(room_id: int) -> RoomStatus:
@@ -437,10 +442,6 @@ class ResultUser(BaseModel):
 
 def get_result_user_list(room_id: int) -> List[ResultUser]:
     with engine.begin() as conn:
-        room_status: RoomStatus = _get_room_status(conn, room_id)
-        if room_status.status == WaitRoomStatus.Waiting:
-            return []
-
         result_user_list: List[ResultUser] = []
 
         room_user: RoomUser
