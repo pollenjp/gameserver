@@ -16,6 +16,17 @@ from .db import engine
 logger = getLogger(__name__)
 
 
+class UserDBTableName:
+    """table column names"""
+
+    table_name: str = "user"
+
+    id: str = "id"  # primary key, bigint NOT NULL AUTO_INCREMENT,
+    name: str = "name"  # varchar(255) DEFAULT NULL,
+    token: str = "token"  # UNIQUE varchar(255) DEFAULT NULL,
+    leader_card_id: str = "leader_card_id"  # int DEFAULT NULL,
+
+
 class InvalidToken(Exception):
     """指定されたtokenが不正だったときに投げる"""
 
@@ -36,23 +47,46 @@ def create_user(name: str, leader_card_id: int) -> str:
     token = str(uuid.uuid4())
     # NOTE: tokenが衝突したらリトライする必要がある.
     with engine.begin() as conn:
-        query: str = r" ".join(
+        query: str = " ".join(
             [
-                r"INSERT INTO `user`",
-                r"(`name`, `token`, `leader_card_id`)",
-                r"VALUES (:name, :token, :leader_card_id)",
+                f"INSERT INTO `{ UserDBTableName.table_name }`",
+                "SET",
+                ", ".join(
+                    (
+                        f"`{ UserDBTableName.name }`=:name",
+                        f"`{ UserDBTableName.token }`=:token",
+                        f"`{ UserDBTableName.leader_card_id }`=:leader_card_id",
+                    )
+                ),
             ]
         )
         result: CursorResult = conn.execute(
             text(query),
-            {"name": name, "token": token, "leader_card_id": leader_card_id},
+            {
+                "name": name,
+                "token": token,
+                "leader_card_id": leader_card_id,
+            },
         )
         logger.info(f"{result}")
     return token
 
 
 def _get_user_by_token(conn, token: str) -> Optional[SafeUser]:
-    query: str = r"SELECT `id`, `name`, `leader_card_id` FROM `user` WHERE `token`=:token"
+    query: str = " ".join(
+        (
+            "SELECT",
+            ", ".join(
+                (
+                    f"`{ UserDBTableName.id }`",
+                    f"`{ UserDBTableName.name }`",
+                    f"`{ UserDBTableName.leader_card_id }`",
+                )
+            ),
+            f"FROM `{ UserDBTableName.table_name }`",
+            f"WHERE `{ UserDBTableName.token }`=:token",
+        )
+    )
     result = conn.execute(text(query), dict(token=token))
     try:
         row = result.one()
@@ -76,7 +110,19 @@ def update_user(token: str, name: str, leader_card_id: int) -> None:
         if user is None:
             logger.warning(f"user not found. {name=}, {leader_card_id=}")
             raise InvalidToken
-        query: str = r"UPDATE `user` SET `name`=:name, `leader_card_id`=:leader_card_id WHERE `token`=:token"
+        query: str = " ".join(
+            (
+                f"UPDATE `{ UserDBTableName.table_name }`",
+                "SET",
+                ", ".join(
+                    (
+                        f"`{ UserDBTableName.name }`=:name",
+                        f"`{ UserDBTableName.leader_card_id }`=:leader_card_id",
+                    )
+                ),
+                f"WHERE `{ UserDBTableName.token }`=:token",
+            )
+        )
         result: CursorResult = conn.execute(text(query), dict(name=name, leader_card_id=leader_card_id, token=token))
         logger.info(f"{result=}")
         logger.info(f"{dir(result)=}")
