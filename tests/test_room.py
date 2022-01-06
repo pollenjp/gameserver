@@ -70,7 +70,9 @@ class TestRoom:
             ),
         ],
     )
-    def test_create_room(self, room_arg: Dict[str, Any]):
+    def test_create_and_leave_room(self, room_arg: Dict[str, Any]):
+        """create a room and leave it"""
+        # create a room
         response = client.post(
             "/room/create",
             headers=self.auth_header,
@@ -80,6 +82,26 @@ class TestRoom:
             ),
         )
         assert response.status_code == 200
+        room_id: int = response.json()["room_id"]
+        logger.info(f"/room/create {room_id=}")
+
+        # leave the room
+        response = client.post(
+            "/room/leave",
+            headers=self.auth_header,
+            json=dict(room_id=room_id),
+        )
+        assert response.status_code == 200
+
+        # check the room is deleted from room DB table.
+        response = client.post(
+            "/room/list",
+            json=dict(live_id=room_arg["live_id"]),
+        )
+        assert response.status_code == 200
+        room_info_list: List[room_model.RoomInfo] = response.json()["room_info_list"]
+        assert room_id in set([room_info["room_id"] for room_info in room_info_list])
+        assert set([room_arg["live_id"]]) == set([room_info["live_id"] for room_info in room_info_list])
 
     def test_start_to_end(self):
         response = client.post(
@@ -132,30 +154,3 @@ class TestRoom:
         )
         assert response.status_code == 200
         logger.info("room/end response:", response.json())
-
-    def test_create_and_leave(self):
-        """create room and leave it"""
-
-        # create a host user
-        user_tokens: List[str] = _create_users(num=1)
-        auth_header: Dict[str, Any] = _get_auth_header(user_tokens[0])
-
-        # host a room
-        response = client.post(
-            "/room/create",
-            headers=auth_header,
-            json=dict(
-                live_id=1001,
-                select_difficulty=int(room_model.LiveDifficulty.normal),
-            ),
-        )
-        assert response.status_code == 200
-        room_id = response.json()["room_id"]
-        logger.info(f"room/create {room_id=}")
-
-        # leave the room
-        response = client.post(
-            "/room/leave",
-            headers=auth_header,
-            json=dict(room_id=room_id),
-        )
