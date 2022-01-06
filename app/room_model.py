@@ -175,7 +175,7 @@ def _create_room_user(
                     f"`{ RoomUserDBTableName.select_difficulty }`=:live_difficulty",
                     f"`{ RoomUserDBTableName.is_host }`=:is_host",
                 )
-            )
+            ),
         )
     )
     result: CursorResult = conn.execute(

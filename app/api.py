@@ -218,10 +218,7 @@ def room_end(req: RoomEndRequest, token: str = Depends(get_auth_token)):
     room_user_result: room_model.RoomUserResult = room_model.RoomUserResult(
         room_id=req.room_id,
         user_id=user.id,
-        **{
-            judge_name: req.judge_count_list[i]
-            for i, judge_name in enumerate(room_model.const_judge_count_order)
-        },
+        **{judge_name: req.judge_count_list[i] for i, judge_name in enumerate(room_model.const_judge_count_order)},
         score=req.score,
         end_playing=True,
     )
