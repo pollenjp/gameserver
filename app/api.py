@@ -218,15 +218,14 @@ def room_end(req: RoomEndRequest, token: str = Depends(get_auth_token)):
     room_user_result: room_model.RoomUserResult = room_model.RoomUserResult(
         room_id=req.room_id,
         user_id=user.id,
-        judge_count_perfect=req.judge_count_list[0],
-        judge_count_great=req.judge_count_list[1],
-        judge_count_good=req.judge_count_list[2],
-        judge_count_bad=req.judge_count_list[3],
-        judge_count_miss=req.judge_count_list[4],
+        **{
+            judge_name: req.judge_count_list[i]
+            for i, judge_name in enumerate(room_model.const_judge_count_order)
+        },
         score=req.score,
         end_playing=True,
     )
-    room_model.store_room_user_result(room_user_result=room_user_result)
+    room_model.finish_playing(room_user_result=room_user_result)
     return EmptyResponse()
 
 

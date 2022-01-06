@@ -163,16 +163,20 @@ def _create_room_user(
     is_host: bool,
 ):
     query: str = " ".join(
-        [
+        (
             f"INSERT INTO `{ RoomUserDBTableName.table_name }`",
             "SET",
-            f"`{ RoomUserDBTableName.room_id }`=:room_id,",
-            f"`{ RoomUserDBTableName.user_id }`=:user_id,",
-            f"`{ RoomUserDBTableName.user_name }`=:user_name,",
-            f"`{ RoomUserDBTableName.leader_card_id }`=:leader_card_id,",
-            f"`{ RoomUserDBTableName.select_difficulty }`=:live_difficulty,",
-            f"`{ RoomUserDBTableName.is_host }`=:is_host",
-        ]
+            ", ".join(
+                (
+                    f"`{ RoomUserDBTableName.room_id }`=:room_id",
+                    f"`{ RoomUserDBTableName.user_id }`=:user_id",
+                    f"`{ RoomUserDBTableName.user_name }`=:user_name",
+                    f"`{ RoomUserDBTableName.leader_card_id }`=:leader_card_id",
+                    f"`{ RoomUserDBTableName.select_difficulty }`=:live_difficulty",
+                    f"`{ RoomUserDBTableName.is_host }`=:is_host",
+                )
+            )
+        )
     )
     result: CursorResult = conn.execute(
         text(query),
@@ -230,11 +234,7 @@ def join_room(
             _update_room_user_count(conn=conn, room_id=room_id, offset=1)
             return JoinRoomResult.Ok
         except Exception as e:
-            # Standard Library
-            import traceback
-
-            logger.info(f"{traceback.format_exc()}")
-            logger.info(f"{e=}")
+            logger.info(f"{e=}", exc_info=True)
             return JoinRoomResult.OhterError
 
 
@@ -357,43 +357,42 @@ class RoomUserResult(BaseModel):
         orm_mode = True
 
 
-def store_room_user_result(room_user_result: RoomUserResult) -> None:
-    with engine.begin() as conn:
-        query: str = " ".join(
-            [
-                f"UPDATE `{ RoomUserDBTableName.table_name }`",
-                "SET",
-                ", ".join(
-                    (
-                        f"`{ RoomUserDBTableName.judge_count_perfect }`=:judge_count_perfect",
-                        f"`{ RoomUserDBTableName.judge_count_great    }`=:judge_count_great",
-                        f"`{ RoomUserDBTableName.judge_count_good   }`=:judge_count_good",
-                        f"`{ RoomUserDBTableName.judge_count_bad     }`=:judge_count_bad",
-                        f"`{ RoomUserDBTableName.judge_count_miss    }`=:judge_count_miss",
-                        f"`{ RoomUserDBTableName.score }`=:score",
-                        f"`{ RoomUserDBTableName.end_playing }`=:end_playing",
-                    )
-                ),
-                f"WHERE `{ RoomUserDBTableName.room_id }`=:room_id",
-                f"AND `{ RoomUserDBTableName.user_id }`=:user_id",
-            ]
-        )
-        result = conn.execute(
-            text(query),
-            dict(
-                judge_count_perfect=room_user_result.judge_count_perfect,
-                judge_count_great=room_user_result.judge_count_great,
-                judge_count_good=room_user_result.judge_count_good,
-                judge_count_bad=room_user_result.judge_count_bad,
-                judge_count_miss=room_user_result.judge_count_miss,
-                score=room_user_result.score,
-                end_playing=room_user_result.end_playing,
-                room_id=room_user_result.room_id,
-                user_id=room_user_result.user_id,
+def _store_room_user_result(conn, room_user_result: RoomUserResult) -> None:
+    query: str = " ".join(
+        [
+            f"UPDATE `{ RoomUserDBTableName.table_name }`",
+            "SET",
+            ", ".join(
+                (
+                    f"`{ RoomUserDBTableName.judge_count_perfect }`=:judge_count_perfect",
+                    f"`{ RoomUserDBTableName.judge_count_great    }`=:judge_count_great",
+                    f"`{ RoomUserDBTableName.judge_count_good   }`=:judge_count_good",
+                    f"`{ RoomUserDBTableName.judge_count_bad     }`=:judge_count_bad",
+                    f"`{ RoomUserDBTableName.judge_count_miss    }`=:judge_count_miss",
+                    f"`{ RoomUserDBTableName.score }`=:score",
+                    f"`{ RoomUserDBTableName.end_playing }`=:end_playing",
+                )
             ),
-        )
-        logger.info(f"{result=}")
-        return
+            f"WHERE `{ RoomUserDBTableName.room_id }`=:room_id",
+            f"AND `{ RoomUserDBTableName.user_id }`=:user_id",
+        ]
+    )
+    result = conn.execute(
+        text(query),
+        dict(
+            judge_count_perfect=room_user_result.judge_count_perfect,
+            judge_count_great=room_user_result.judge_count_great,
+            judge_count_good=room_user_result.judge_count_good,
+            judge_count_bad=room_user_result.judge_count_bad,
+            judge_count_miss=room_user_result.judge_count_miss,
+            score=room_user_result.score,
+            end_playing=room_user_result.end_playing,
+            room_id=room_user_result.room_id,
+            user_id=room_user_result.user_id,
+        ),
+    )
+    logger.info(f"{result=}")
+    return
 
 
 def _get_room_user_result(conn, room_id: int, user_id: int) -> Optional[RoomUserResult]:
@@ -486,6 +485,22 @@ def _drop_room(conn, room_id: int):
         logger.error(f"failed to drop {room_id=}")
 
 
+def _decrement_room_user_and_try_to_drop_room(conn, room_id: int) -> None:
+    # decrement joined_user_count
+    joined_user_count: int = _update_room_user_count(conn=conn, room_id=room_id, offset=-1)
+    if joined_user_count == 0:
+        # drop the room
+        _drop_room(conn=conn, room_id=room_id)
+    elif joined_user_count < 0:
+        logger.error(f"Something wrong... {joined_user_count=}")
+
+
+def finish_playing(room_user_result: RoomUserResult) -> None:
+    with engine.begin() as conn:
+        _store_room_user_result(conn=conn, room_user_result=room_user_result)
+        _decrement_room_user_and_try_to_drop_room(conn, room_id=room_user_result.room_id)
+
+
 def _drop_room_user(conn, room_id: int, user_id: int) -> None:
     query: str = " ".join(
         [
@@ -511,7 +526,5 @@ def _drop_room_user(conn, room_id: int, user_id: int) -> None:
 def leave_room(room_id: int, user_id: int) -> None:
     with engine.begin() as conn:
         _drop_room_user(conn, room_id=room_id, user_id=user_id)
-        joined_user_count: int = _update_room_user_count(conn=conn, room_id=room_id, offset=-1)
-        if joined_user_count <= 0:
-            _drop_room(conn=conn, room_id=room_id)
+        _decrement_room_user_and_try_to_drop_room(conn, room_id=room_id)
         return
