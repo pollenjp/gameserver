@@ -260,7 +260,7 @@ def join_room(
             return JoinRoomResult.OhterError
 
 
-def _get_rooms_by_live_id(conn, live_id: int) -> Iterator[RoomInfo]:
+def _get_rooms_by_live_id(conn, live_id: int, room_status:WaitRoomStatus = WaitRoomStatus.Waiting) -> Iterator[RoomInfo]:
     """list rooms
 
     Args:
@@ -275,12 +275,20 @@ def _get_rooms_by_live_id(conn, live_id: int) -> Iterator[RoomInfo]:
     """
     query: str = " ".join(
         [
-            f"SELECT `{ RoomDBTableName.room_id }`, `{ RoomDBTableName.live_id }`, `{ RoomDBTableName.joined_user_count }`",
+            "SELECT",
+            ", ".join(
+                (
+                    f"`{ RoomDBTableName.room_id }`",
+                    f"`{ RoomDBTableName.live_id }`",
+                    f"`{ RoomDBTableName.joined_user_count }`",
+                )
+            ),
             f"FROM `{ RoomDBTableName.table_name }`",
+            f"WHERE `{ RoomDBTableName.status }`=:room_status",
         ]
-        + ([] if live_id == 0 else [f"WHERE `{ RoomDBTableName.live_id }`=:live_id"])
+        + ([] if live_id == 0 else [f"AND `{ RoomDBTableName.live_id }`=:live_id"])
     )
-    result = conn.execute(text(query), dict(live_id=live_id))
+    result = conn.execute(text(query), dict(room_status=int(room_status), live_id=live_id))
     for row in result.all():
         yield RoomInfo.from_orm(row)
 
