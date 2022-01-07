@@ -496,7 +496,7 @@ def _get_room_joined_user_count(conn, room_id: int) -> int:
     )
     result = conn.execute(text(query), dict(room_id=room_id))
     row = result.one()
-    return row["joined_user_count"]
+    return int(row["joined_user_count"])
 
 
 def _decrement_room_user_and_try_to_drop_room(conn, room_id: int) -> None:
