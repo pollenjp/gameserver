@@ -16,7 +16,8 @@ from .db import engine
 
 logger = getLogger(__name__)
 
-max_user_count: int = 4
+# max_user_count: int = 4
+max_user_count: int = 2
 
 
 class RoomDBTableName:
@@ -196,6 +197,23 @@ def _get_room_info_by_id(conn, room_id: int) -> Optional[RoomInfo]:
     return RoomInfo.from_orm(row)
 
 
+def _get_room_status(conn, room_id: int) -> RoomStatus:
+    query: str = " ".join(
+        [
+            f"SELECT `{ RoomDBTableName.room_id }`, `{ RoomDBTableName.status }`",
+            f"FROM `{ RoomDBTableName.table_name }`",
+            f"WHERE `{ RoomDBTableName.room_id }`=:room_id",
+        ]
+    )
+    result = conn.execute(text(query), dict(room_id=room_id))
+    try:
+        row = result.one()
+    except NoResultFound as e:
+        logger.error(f"{e=}", exc_info=True)
+        raise e
+    return RoomStatus.from_orm(row)
+
+
 def join_room(
     user_id: int,
     room_id: int,
@@ -219,6 +237,10 @@ def join_room(
                 return JoinRoomResult.Disbanded
             if room_info.joined_user_count >= room_info.max_user_count:
                 return JoinRoomResult.RoomFull
+
+            room_status: RoomStatus = _get_room_status(conn=conn, room_id=room_id)
+            if room_status.status != WaitRoomStatus.Waiting:
+                return JoinRoomResult.OhterError
 
             _create_room_user(
                 conn=conn,
@@ -266,23 +288,6 @@ def _get_rooms_by_live_id(conn, live_id: int) -> Iterator[RoomInfo]:
 def get_rooms_by_live_id(live_id: int) -> List[RoomInfo]:
     with engine.begin() as conn:
         return list(_get_rooms_by_live_id(conn, live_id))
-
-
-def _get_room_status(conn, room_id: int) -> RoomStatus:
-    query: str = " ".join(
-        [
-            f"SELECT `{ RoomDBTableName.room_id }`, `{ RoomDBTableName.status }`",
-            f"FROM `{ RoomDBTableName.table_name }`",
-            f"WHERE `{ RoomDBTableName.room_id }`=:room_id",
-        ]
-    )
-    result = conn.execute(text(query), dict(room_id=room_id))
-    try:
-        row = result.one()
-    except NoResultFound as e:
-        logger.error(f"{e=}", exc_info=True)
-        raise e
-    return RoomStatus.from_orm(row)
 
 
 def get_room_status(room_id: int) -> RoomStatus:
@@ -508,10 +513,11 @@ def _decrement_room_user_and_try_to_drop_room(conn, room_id: int) -> None:
     joined_user_count: int = _get_room_joined_user_count(conn, room_id=room_id)
     # decrement joined_user_count
     _update_room_user_count(conn=conn, room_id=room_id, offset=-1)
+    conn.execute(text("COMMIT"), {})
+    logger.info(f"{room_id}")
     if joined_user_count == 0:
         # drop the room
         _drop_room(conn=conn, room_id=room_id)
-        conn.execute(text("COMMIT"), {})
     elif joined_user_count < 0:
         logger.error(f"Something wrong... {joined_user_count=}")
         raise Exception(f"Something wrong... {joined_user_count=}")
