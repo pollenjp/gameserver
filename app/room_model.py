@@ -522,7 +522,7 @@ def _decrement_room_user_and_try_to_drop_room(conn, room_id: int) -> None:
     # decrement joined_user_count
     _update_room_user_count(conn=conn, room_id=room_id, offset=-1)
     conn.execute(text("COMMIT"), {})
-    logger.info(f"{room_id}")
+    logger.info(f"_decrement_room_user_and_try_to_drop_room {room_id=}, {joined_user_count}")
     if joined_user_count == 0:
         # drop the room
         _drop_room(conn=conn, room_id=room_id)
