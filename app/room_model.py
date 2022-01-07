@@ -513,15 +513,9 @@ def _get_room_joined_user_count(conn, room_id: int) -> int:
 
 
 def _decrement_room_user_and_try_to_drop_room(conn, room_id: int) -> None:
-    # lock
-    conn.execute(
-        text(f"SELECT * FROM `{ RoomDBTableName.table_name }` WHERE `{ RoomDBTableName.room_id }`=:room_id FOR UPDATE"),
-        dict(room_id=room_id),
-    )
     joined_user_count: int = _get_room_joined_user_count(conn, room_id=room_id)
     # decrement joined_user_count
     _update_room_user_count(conn=conn, room_id=room_id, offset=-1)
-    conn.execute(text("COMMIT"), {})
     logger.info(f"_decrement_room_user_and_try_to_drop_room {room_id=}, {joined_user_count}")
     if joined_user_count == 0:
         # drop the room
